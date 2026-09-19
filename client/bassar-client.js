@@ -14,7 +14,7 @@
 ------------------------------------------------------------------ */
 
 /* ---- config. The build rewrites GAME and RETURN_LINE per file. ---- */
-const BASSAR_ENDPOINT = "";          // "https://bassar-capture.<sub>.workers.dev" — no trailing slash
+const BASSAR_ENDPOINT = "https://bassar-capture.julioernestolv.workers.dev";          // "https://bassar-capture.<sub>.workers.dev" — no trailing slash
 const BASSAR_SITE     = "";          // "https://bassarplay.com" — where share links point. Empty = this origin.
 const BASSAR_GAME     = "%GAME%";    // "" on site pages
 const BASSAR_RETURN   = "%RETURN%";  // the in-world line shown to someone who has been here before

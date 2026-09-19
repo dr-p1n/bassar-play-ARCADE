@@ -6,7 +6,7 @@ compatibility_date = "2026-09-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "bassar-capture"
-database_id = "PASTE_DATABASE_ID_HERE"
+database_id = "c0ff5982-2370-4150-a6cf-cd56e7ea1acf"
 
 [observability]
 enabled = true

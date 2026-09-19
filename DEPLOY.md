@@ -38,84 +38,78 @@ the existing apex and `www` entries somewhere — the real target (almost
 certainly a CNAME to a `*.netlify.app` host, CNAME-flattened at the apex) only
 exists there. Without it the advisory site cannot be put back.
 
-## Order of operations
+## Current state — deployed 2026-09-19
 
-`www` is left pointing at Netlify below. If you want the arcade on `www` too,
-add it as a second custom domain on the same Pages project — but then the
-advisory site is fully off the domain, so decide deliberately rather than by
-default.
+Live and verified end to end. A play made in a browser reached D1 and came back
+out of `/stats`, with the `?src=` tag intact through both the game iframe and
+the redirect described below.
 
-```bash
-# 1. the database
-cd worker
-npm install
-npx wrangler login
-npx wrangler d1 create bassar-capture     # → prints database_id
-```
+| | |
+|---|---|
+| **the arcade** | **https://bassar.julioernestolv.workers.dev** |
+| the capture API | https://bassar-capture.julioernestolv.workers.dev |
+| D1 database | `bassar-capture`, id `c0ff5982-2370-4150-a6cf-cd56e7ea1acf`, region ENAM |
+| secrets | `STATS_TOKEN`, `IP_SALT` — set on the worker; local copy in `worker/.dev.vars` (gitignored, mode 600) |
+| indexing | `noindex, nofollow` confirmed live on every path |
+| database | empty — the self-test rows were deleted, so Gate 1 starts from zero |
 
-Paste that id into `worker/wrangler.toml`, replacing `PASTE_DATABASE_ID_HERE`.
-Nothing deploys until this is done.
-
-```bash
-# 2. tables, secrets, ship
-npm run db:init
-npx wrangler secret put STATS_TOKEN       # openssl rand -hex 24
-npx wrangler secret put IP_SALT           # openssl rand -hex 24
-npm run deploy                            # → https://bassar-capture.<sub>.workers.dev
-```
+Read the number with:
 
 ```bash
-# 3. one line, one file, then rebuild
-#    client/bassar-client.js:
-#      const BASSAR_ENDPOINT = "https://bassar-capture.<sub>.workers.dev";
-#    Leave BASSAR_SITE empty — share links then mint on whatever origin
-#    serves them, which is what you want while the domain is borrowed.
-python3 build.py
+TOKEN=$(sed -n 's/STATS_TOKEN="\(.*\)"/\1/p' worker/.dev.vars)
+curl -sS "https://bassar-capture.julioernestolv.workers.dev/stats?token=$TOKEN" | jq
 ```
 
-`build.py` writes the client into `bassar play/*.html` (the standalone itch.io
-copies), mirrors those into `site/games/`, and regenerates `site/bassar.js`.
-It also stamps the favicon and the share-card tags into all four page heads.
-It is idempotent. Never edit the client inside a game.
+### Redeploying
 
-### The two constants that name a host
-
-Everything else on the site is root-relative, but two values cannot be:
-
-| constant | file | what breaks if it is wrong |
-|---|---|---|
-| `BASSAR_SITE` | `client/bassar-client.js` | share links point at the wrong origin |
-| `OG_BASE` | `build.py` | `og:image` / `og:url` 404, so shared links preview as a bare grey box |
-
-`OG_BASE` is set to `https://ptytropicsadvisors.com` for the test week. It has
-to be absolute — Facebook and X will not resolve a relative `og:image` — which
-is why it is a build-time constant rather than markup. Change it and rerun the
-build; do not hand-edit the four heads, because the build regenerates them.
-
-This one is easy to forget for a bad reason: the site looks perfect while it is
-wrong. The tags are only read by a scraper, so nothing is visibly broken until
-someone shares a link and it previews as nothing — during the exact week you
-are measuring whether people share.
+Cloudflare created the arcade as a **Worker with static assets**, not a legacy
+Pages project. `wrangler pages deploy` therefore reports `"the-bassar" does not
+exist`, which is expected and not an error to debug. The config is
+`wrangler.jsonc` at the repo root, and the worker is named `bassar`.
 
 ```bash
-# 4. the site — direct upload, so nothing auto-ships on a git push
-npx wrangler pages deploy site/ --project-name=the-bassar
+python3 build.py                      # always first — it regenerates site/
+npx wrangler deploy                   # the arcade, from the repo root
+cd worker && npx wrangler deploy      # the capture API, separately
 ```
 
-5. Cloudflare → Pages → `the-bassar` → Custom domains → add
-   `ptytropicsadvisors.com`. **This is the step that takes the apex off
-   Netlify.** Do it after step 4, so the domain resolves to a working arcade
-   rather than an empty project.
-
-6. Send the circle links tagged `?src=circle`:
-   `https://ptytropicsadvisors.com/transcript/?src=circle` — then read the real
-   number out of `by_source`, not the headline. README §"Keep the test out of
-   the Gate 1 number" explains why this is not optional.
+**One piece of litter to clear:** a first attempt created a second, redundant
+worker called `the-bassar` holding an identical copy of the site. Nothing points
+at it and it has no custom domain, but it should go:
 
 ```bash
-# 7. read it
-curl "https://bassar-capture.<sub>.workers.dev/stats?token=$STATS_TOKEN" | jq
+npx wrangler delete --name the-bassar
 ```
+
+### A redirect worth knowing about
+
+The platform's default asset handling 307-redirects `/games/<slug>.html` to
+`/games/<slug>`. The game iframes follow it and the query string survives, which
+is verified — but it means each game load costs one extra hop. Setting
+`html_handling` to `"none"` would remove the hop and simultaneously stop
+`/transcript/` resolving to its `index.html`, which is a worse trade. Left at
+the default deliberately.
+
+## What is left: the apex
+
+Everything above is on the workers.dev host. Moving to
+`ptytropicsadvisors.com` is a Cloudflare dashboard job, and it is the step that
+**takes the live PTY Tropics Advisors site off that hostname.**
+
+1. **Cloudflare → DNS → Records. Copy the existing apex and `www` entries
+   somewhere first.** The record is proxied, so the real Netlify origin exists
+   only in the dashboard — the anycast IPs visible from outside are useless for
+   restoring it. Without this copy the advisory site cannot be put back.
+2. Cloudflare → Workers & Pages → `bassar` → Settings → Domains & Routes → add
+   a custom domain → `ptytropicsadvisors.com`.
+3. Change `OG_BASE` in `build.py` to `https://ptytropicsadvisors.com`, then
+   `python3 build.py && npx wrangler deploy`. Until this is done, share previews
+   point at the workers.dev host — they will still work, but every shared link
+   advertises the wrong hostname.
+4. Leave `BASSAR_SITE` empty unless you want share links minted on a domain
+   that is not yet live. Empty means each link is minted on whatever origin
+   served it, which is correct during a move.
+5. Leave the `noindex` block alone. It stays until the real domain.
 
 ## Still carrying `noindex`
 

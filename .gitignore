@@ -20,3 +20,7 @@ __pycache__/
 # superseded material, kept rather than deleted. Pre-rename Worker+KV-era
 # copies of the games live here; nothing builds from it.
 attic/
+
+.dev.vars*
+!.dev.vars.example
+!.env.example
