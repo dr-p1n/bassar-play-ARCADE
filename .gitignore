@@ -1,0 +1,15 @@
+# dependencies / tooling
+node_modules/
+.wrangler/
+.dev.vars
+
+# secrets — STATS_TOKEN and IP_SALT live in `wrangler secret put`, never in a file
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# pre-rename leftovers: Worker+KV-era copies of the games, superseded by ARCADE/.
+# Directory names carry a trailing space, hence the escape.
+v1\ /

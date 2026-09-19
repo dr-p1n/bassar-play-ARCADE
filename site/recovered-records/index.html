@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RECOVERED RECORDS · BASSAR PLAY</title>
+<meta name="description" content="You are walking a site nobody has walked since.">
+<meta property="og:title" content="RECOVERED RECORDS · BASSAR PLAY">
+<meta property="og:description" content="You are walking a site nobody has walked since.">
+<link rel="stylesheet" href="/bassar.css">
+<style>
+  .stage{
+    aspect-ratio:1.5;
+    max-height:78vh;
+    width:min(100%,calc(78vh * 1.5));
+  }
+</style>
+</head>
+<body>
+<div class="wrap wide">
+
+  <nav class="bar">
+    <a href="/">&larr; BASSAR PLAY</a>
+    <span class="tag">FILE 02 · SITE RECOVERY</span>
+  </nav>
+    <p id="returnLine" class="dim" style="display:none;margin:.9em 0 0"></p>
+
+  <div class="stage">
+    <iframe id="game" data-src="/games/recovered-records.html" title="RECOVERED RECORDS"
+            allow="autoplay" loading="eager"></iframe>
+  </div>
+
+  <p class="tag" style="text-align:center">Hold to listen. Tap to see. Do neither and you walk on blind and deaf.</p>
+
+  <div class="wrap">
+    <div class="rule"></div>
+
+    <div class="tag">THE FILE</div>
+    <p class="dim" style="margin-top:.7em">You cannot leave until you understand what happened here. Listening costs you. So does looking. Neither sense comes back, there is no win state, and you are scored on what you understood — never on how far you walked.</p>
+
+    <div class="rule"></div>
+
+    <section>
+      <div class="tag">ACCESS · THE SITE DOCUMENTS</div>
+      <p class="dim" style="margin-top:.7em">The site was carrying paper. The walk only shows you what you were able to resolve before your senses ran out — the rest of the casualty list, and what was filed alongside it, goes to the list.</p>
+      <p class="dim" style="margin-top:.7em;color:#4a4a46">
+        One list across all three files. Sign up here and you are on the same record
+        as everyone who walked the others.
+      </p>
+
+      <form data-bassar-surface="drop" data-bassar-game="recovered-records" data-bassar-done="Filed. The next one to walk it will find your line.">
+        <label class="tag" for="n">NAME AS IT SHOULD BE RECORDED</label>
+        <input id="n" name="name" type="text" maxlength="18" autocomplete="name" placeholder="optional">
+        <input class="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <label class="tag" for="c">CONTACT</label>
+        <input id="c" name="contact" type="text" inputmode="email" autocomplete="email" placeholder="email or phone">
+        <button type="submit">REQUEST ACCESS</button>
+        <div data-bassar-msg></div>
+      </form>
+    </section>
+
+    <div class="rule"></div>
+
+    <div class="tag">THE OTHER FILES</div>
+    <div class="also" style="margin-top:.8em"><a href="/void-drift/">FILE 01 · VOID//DRIFT</a><a href="/transcript/">FILE 03 · TRANSCRIPT</a></div>
+
+    <footer>BASSAR</footer>
+  </div>
+</div>
+
+<script src="/bassar.js"></script>
+<script>
+  bassarFrame("#game");
+  BASSAR.view("recovered-records");
+  bassarBindForms();
+  bassarGreetPage();
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+name = "bassar-capture"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# Paste the database_id printed by:  npx wrangler d1 create bassar-capture
+[[d1_databases]]
+binding = "DB"
+database_name = "bassar-capture"
+database_id = "PASTE_DATABASE_ID_HERE"
+
+[observability]
+enabled = true
+
+[vars]
+# Empty means "*" — any origin may post. Correct at launch, because itch.io
+# serves HTML games from randomised hosts you cannot predict.
+# Once BASSAR domain is the only home, tighten it:
+# ALLOWED_ORIGINS = "https://bassarplay.com,https://html-classic.itch.zone"
+ALLOWED_ORIGINS = ""
+
+# Secrets, set with `npx wrangler secret put NAME` — never in this file:
+#   STATS_TOKEN  long random string; guards /stats and /export.csv
+#   IP_SALT      long random string; makes stored IP hashes unlinkable

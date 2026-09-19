@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>TRANSCRIPT</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;overflow:hidden;
+    font-family:ui-monospace,Menlo,Consolas,"Courier New",monospace;color:#b9b9b4}
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  #stage{position:relative;width:min(100vw,calc(100vh*0.72));height:min(100vh,calc(100vw/0.72))}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .panel{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+    padding:5% 7%;background:rgba(0,0,0,.91);font-size:clamp(11px,2.3vmin,14px);line-height:1.5;overflow:auto}
+  .panel.on{display:flex}
+  h1{font-size:clamp(18px,5vmin,30px);letter-spacing:.16em;color:#e6e6e0;font-weight:400;margin-bottom:.5em}
+  .dim{color:#6a6a66}
+  .rule{height:1px;background:#242422;margin:.9em 0}
+  .tag{letter-spacing:.22em;color:#5c5c58;font-size:clamp(9px,2vmin,11px)}
+  .plain{color:#cfcfc8;letter-spacing:.18em;font-size:clamp(11px,2.4vmin,15px);word-break:break-all}
+  .case{display:flex;justify-content:space-between;border-bottom:1px solid #191918;padding:.35em 0;
+    font-size:clamp(10px,2vmin,12px);color:#878782}
+  input{width:100%;margin:.5em 0;padding:.65em;background:#0a0a0a;border:1px solid #2a2a28;
+    color:#d8d8d2;font:inherit;font-size:clamp(11px,2.3vmin,13px)}
+  button{margin-top:.3em;padding:.7em 1em;background:#141412;border:1px solid #3a3a36;
+    color:#d8d8d2;font:inherit;font-size:clamp(11px,2.3vmin,13px);cursor:pointer;letter-spacing:.08em}
+  button:active{background:#232320}
+  .two{display:flex;gap:.6em;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage">
+  <canvas id="c" width="620" height="860"></canvas>
+
+  <div class="panel on" id="titleP">
+    <div class="tag">FILE 03 · SIGNAL</div>
+    <h1>TRANSCRIPT</h1>
+    <div id="returnLine" class="dim" style="display:none;margin:.6em 0"></div>
+    <div>A dead band. Something keeps tuning through it, the same way, at the same intervals. It is not music. It is a sentence, struck one mark at a time.</div>
+    <div class="rule"></div>
+    <div><b>STRIKE</b> the mark as it crosses the line. <span class="dim">D F J K, or the four zones on touch.</span></div>
+    <div>Every mark you land on time decodes one letter of the message.</div>
+    <div>Every mark you land on time also teaches it your timing.</div>
+    <div class="rule"></div>
+    <div class="dim">The key does not change between runs. Write it down. Compare it with the others.</div>
+    <div class="dim">There is no win state. Accuracy is the clock. Listen for the whistle before the mark.</div>
+    <button id="startB">OPEN THE CHANNEL</button>
+    <div class="tag" style="margin-top:1em">BASSAR</div>
+  </div>
+
+  <div class="panel" id="deadP">
+    <div class="tag" id="endTag">OUTCOME</div>
+    <h1 id="endH">TRANSCRIBED</h1>
+    <div class="dim" id="endSub"></div>
+    <div class="rule"></div>
+    <div class="tag">WHAT YOU DECODED</div>
+    <div class="plain" id="plainOut"></div>
+    <div class="rule"></div>
+    <div class="tag">CASUALTY LIST</div>
+    <div id="caseList"></div>
+    <div class="rule"></div>
+    <div class="dim" id="capMsg">Add yourself to the record.</div>
+    <div id="capForm">
+      <input id="nameIn" type="text" placeholder="name as it should be recorded" maxlength="18">
+      <input id="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+      <input id="capIn" type="text" inputmode="email" autocomplete="email" placeholder="email or phone">
+      <div class="two"><button id="capB">FILE IT</button><button id="againB">OPEN IT AGAIN</button></div>
+    </div>
+    <div class="rule"></div>
+    <div class="tag">PASS IT ON</div>
+    <div class="dim">Anyone who walks in on your line arrives marked as yours.</div>
+    <input id="shareIn" type="text" readonly>
+    <button id="shareB">COPY THE LINK</button>
+    <button id="again2" style="display:none">OPEN IT AGAIN</button>
+  </div>
+</div></div>
+
+<script>
+/* ------------------------------------------------------------------
+   TRANSCRIPT — game three. BASSAR
+   Timed input x decryption. Single file, Canvas 2D, Web Audio only.
+
+   The mechanic, in two sentences:
+   A repeating signal scrolls at you, and every mark you strike on time
+   decodes one letter of the message you are scored on. Every accurate
+   strike also teaches the signal your timing -- when its copy of you is
+   close enough, it plays you back, and that is the end.
+
+   The register is a broken radio detuning, not a rhythm: an irregular
+   phrase that repeats, four carrier positions on a dead band, and a
+   heterodyne whistle that sweeps in before every mark. As it acquires
+   you the static thins and the band goes clean. Clean is the bad news.
+------------------------------------------------------------------ */
+/* ==== BASSAR CLIENT — generated by build.py. Edit client/bassar-client.js. ==== */
+/* ------------------------------------------------------------------
+   BASSAR — capture client. ONE canonical copy.
+
+   Do not edit this inside a game. Edit it here and run:
+       python3 build.py
+   which inlines it into the three games and writes site/bassar.js.
+   The games must stay self-contained single files for itch.io, which is
+   why it is copied rather than linked.
+
+   Three things it tracks, in three tables on the other end:
+     visitors  who, across days           (localStorage — persistent)
+     plays     one session with one game  (sessionStorage — per tab)
+     records   signups                    (the four doors)
+------------------------------------------------------------------ */
+
+/* ---- config. The build rewrites GAME and RETURN_LINE per file. ---- */
+const BASSAR_ENDPOINT = "";          // "https://bassar-capture.<sub>.workers.dev" — no trailing slash
+const BASSAR_SITE     = "";          // "https://bassarplay.com" — where share links point. Empty = this origin.
+const BASSAR_GAME     = "transcript";    // "" on site pages
+const BASSAR_RETURN   = "You have opened this channel before — %N%. It has been waiting at the same interval.";  // the in-world line shown to someone who has been here before
+
+const BASSAR = (() => {
+  const store = k => { try { return window[k] } catch (e) { return null } };
+  const LS = store("localStorage"), SS = store("sessionStorage");
+  const rd = (s, k) => { try { return s && s.getItem(k) } catch (e) { return null } };
+  const wr = (s, k, v) => { try { s && s.setItem(k, v) } catch (e) {} };
+  const rand = n => { let s = ""; while (s.length < n) s += Math.random().toString(36).slice(2); return s.slice(0, n); };
+
+  /* ---- the visitor: persistent, across days ---- */
+  let V = null;
+  try { V = JSON.parse(rd(LS, "bassar_v") || "null") } catch (e) {}
+  const fresh = !V || !V.vid;
+  if (fresh) V = { vid: rand(16), code: rand(6), first: Date.now(), visits: 0, walks: {}, ref: "" };
+  V.walks = V.walks || {};
+
+  /* a visit is a new tab session, not a page load */
+  let sid = rd(SS, "bassar_sid");
+  const newSession = !sid;
+  if (newSession) { sid = Date.now().toString(36) + rand(8); wr(SS, "bassar_sid", sid); V.visits = (V.visits || 0) + 1; }
+
+  /* ---- attribution, read once and kept ---- */
+  let attr = rd(SS, "bassar_attr");
+  const q = new URLSearchParams(location.search);
+  if (!attr) {
+    attr = JSON.stringify({
+      source:   (q.get("src") || q.get("utm_source") || "").slice(0, 60),
+      medium:   (q.get("utm_medium") || "").slice(0, 60),
+      campaign: (q.get("utm_campaign") || "").slice(0, 60),
+      referrer: (document.referrer || "").slice(0, 300)
+    });
+    wr(SS, "bassar_attr", attr);
+  }
+  const A = JSON.parse(attr);
+
+  /* ---- the referral chain. Only a brand-new visitor can be claimed. ---- */
+  const ref = (q.get("ref") || "").slice(0, 12);
+  if (fresh && ref && ref !== V.code) V.ref = ref;
+
+  const save = () => wr(LS, "bassar_v", JSON.stringify(V));
+  save();
+
+  /* ---- transport ---- */
+  const base = () => BASSAR_ENDPOINT.replace(/\/+$/, "");
+  function post(path, extra, beacon) {
+    const body = Object.assign({
+      session: sid, vid: V.vid, code: V.code, referred_by: V.ref || "",
+      visits: V.visits, game: BASSAR_GAME
+    }, A, extra || {});
+    if (!base()) { console.log("[bassar " + path + "]", body); return Promise.resolve({ ok: true, local: true }); }
+    const url = base() + path, s = JSON.stringify(body);
+    if (beacon && navigator.sendBeacon) {
+      try { navigator.sendBeacon(url, new Blob([s], { type: "application/json" })); return Promise.resolve({ ok: true }); } catch (e) {}
+    }
+    return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: s, keepalive: true }).then(r => r.ok ? r.json() : { ok: false }).catch(() => ({ ok: false }));
+  }
+
+  /* ---- playtime, measured rather than inferred ----
+     A beat every 30s while a run is actually in progress, stopped on the end
+     screen, capped at 40 beats. Sitting on a dead screen is not playtime. */
+  const BEAT_MS = 30000, BEAT_CAP = 40;
+  let runs = 0, ended = 0, opened = false, activeMs = 0, runStart = 0, beats = 0, timer = null;
+  const dur = () => Math.round(activeMs + (runStart ? Date.now() - runStart : 0));
+  const hp = () => { const e = document.getElementById("hp"); return e ? e.value : ""; };
+
+  function beat(beacon) { return post("/play", { runs, ended, dur_ms: dur() }, beacon); }
+  function startBeat() {
+    if (timer) return;
+    timer = setInterval(() => {
+      if (++beats > BEAT_CAP) return stopBeat();
+      beat(false);
+    }, BEAT_MS);
+  }
+  function stopBeat() { if (timer) { clearInterval(timer); timer = null; } }
+
+  addEventListener("pagehide", () => {
+    if (runStart) { activeMs += Date.now() - runStart; runStart = 0; }
+    if (runs || BASSAR_GAME === "") beat(true);
+  });
+  document.addEventListener("visibilitychange", () => {
+    // a backgrounded tab is not playtime
+    if (document.hidden && runStart) { activeMs += Date.now() - runStart; runStart = 0; stopBeat(); }
+    else if (!document.hidden && runs && !ended) { runStart = Date.now(); startBeat(); }
+  });
+
+  return {
+    /* how many times this person has been here before, for the in-world line */
+    returning: !fresh,
+    visits: V.visits,
+    walks: V.walks[BASSAR_GAME] || 0,
+    code: V.code,
+    referredBy: V.ref || "",
+
+    /* a run started. First call is the play row; the rest are depth. */
+    run() {
+      runs++; ended = 0; runStart = Date.now(); startBeat();
+      V.walks[BASSAR_GAME] = (V.walks[BASSAR_GAME] || 0) + 1; save();
+      if (!opened) { opened = true; return post("/play", { runs, dur_ms: 0, first: 1 }); }
+      return beat(false);
+    },
+
+    /* a run ended — they are looking at the capture form now */
+    ended() {
+      ended = 1;
+      if (runStart) { activeMs += Date.now() - runStart; runStart = 0; }
+      stopBeat(); return beat(false);
+    },
+
+    /* a page view on the site. kind:"page" keeps it out of the play count. */
+    view(page) { return post("/play", { kind: "page", game: "page:" + page, runs: 0 }); },
+
+    /* a signup. surface: game-end | drop | index.
+       Carries runs and playtime, so the record says how much of the thing
+       they had actually done at the moment they decided to file. */
+    record(f) {
+      return post("/record", Object.assign(
+        { surface: "game-end", website: hp(), runs, ended, dur_ms: dur() }, f));
+    },
+    sign(surface, game, f) { return post("/record", Object.assign({ surface, game, kind: "page", website: hp() }, f)); },
+
+    /* the share link. Whoever walks in on it arrives marked as yours. */
+    shareUrl(slug) {
+      const root = (BASSAR_SITE || location.origin).replace(/\/+$/, "");
+      const path = slug ? "/" + slug + "/" : (BASSAR_GAME ? "/" + BASSAR_GAME + "/" : "/");
+      return root + path + "?ref=" + V.code;
+    },
+
+    /* The in-world line on a game's title screen. Two things can be true:
+       they arrived on somebody's link, and they have been here before. */
+    greet() {
+      const el = document.getElementById("returnLine");
+      if (!el) return;
+      const lines = [];
+      if (this.referredBy) lines.push("You arrived on somebody else's line.");
+      if (this.walks > 0) {
+        lines.push(BASSAR_RETURN.replace("%N%", this.walks === 1 ? "once" : this.walks + " times"));
+      }
+      if (!lines.length) return;
+      el.textContent = lines.join(" ");
+      el.style.display = "";
+    }
+  };
+})();
+
+
+/* The share control on an end screen: #shareIn (readonly input) + #shareB. */
+function bassarBindShare(slug) {
+  const inp = document.getElementById("shareIn"), btn = document.getElementById("shareB");
+  if (!inp || !btn) return;
+  inp.value = BASSAR.shareUrl(slug);
+  btn.addEventListener("click", () => {
+    inp.select(); inp.setSelectionRange(0, 999);
+    const done = () => { btn.textContent = "COPIED. PASS IT ON."; };
+    if (navigator.clipboard) navigator.clipboard.writeText(inp.value).then(done, done);
+    else { try { document.execCommand("copy"); done(); } catch (e) {} }
+  });
+}
+/* ==== END BASSAR CLIENT ==== */
+
+/* ---------- the cipher: fixed key, crackable across runs ---------- */
+const GLYPHS="\u039b\u03d8\u2310\u256a\u03df\u22d4\u0370\u2293\u03e1\u2311\u03de\u039e\u22cf\u0372\u03d7\u2294\u03d9\u2307\u03d6\u22bb\u03e0\u233e\u03e3\u229e\u03e4\u2301"; // A..Z, never re-rolled
+function enc(ch){ const i="ABCDEFGHIJKLMNOPQRSTUVWXYZ".indexOf(ch); return i<0?ch:GLYPHS[i]; }
+
+const MESSAGES=[
+ "THE FOURTH NIGHT I UNDERSTOOD THE PATTERN AND IT UNDERSTOOD ME BACK",
+ "WE KEPT THE RECORDING BECAUSE IT WAS PROOF AND THE PROOF IS WHY IT KNOWS US",
+ "NOBODY TAUGHT IT TO COUNT IT LEARNED BY WATCHING US GET BETTER",
+ "IT REPEATS UNTIL YOU ANSWER AND ANSWERING IS HOW IT FINDS THE DOOR",
+ "THE GAP IN THE TAPE IS NOT MISSING IT IS THE PART THAT IS LISTENING"
+];
+
+/* ---------- audio: a dead band, four carrier positions ---------- */
+let AC=null,NB=null,subGain=null,hissGain=null,hissFilt=null,carrier=null,carGain=null,tuneLFO=null;
+const LANE_FREQ=[420,760,1450,2600];   // where each mark sits on the dial
+
+function pinkBuffer(ctx,sec){
+  const n=Math.floor(ctx.sampleRate*sec),b=ctx.createBuffer(1,n,ctx.sampleRate),d=b.getChannelData(0);
+  let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+  for(let i=0;i<n;i++){const w=Math.random()*2-1;
+    b0=0.99886*b0+w*0.0555179;b1=0.99332*b1+w*0.0750759;b2=0.96900*b2+w*0.1538520;
+    b3=0.86650*b3+w*0.3104856;b4=0.55000*b4+w*0.5329522;b5=-0.7616*b5-w*0.0168980;
+    d[i]=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11;b6=w*0.115926;}
+  return b;
+}
+function initAudio(){
+  if(AC){ if(AC.state==="suspended")AC.resume(); return; }
+  AC=new (window.AudioContext||window.webkitAudioContext)();
+  NB=pinkBuffer(AC,3);
+  // the band itself: wide noise through a wandering bandpass
+  const s=AC.createBufferSource(); s.buffer=NB; s.loop=true;
+  hissFilt=AC.createBiquadFilter(); hissFilt.type="bandpass"; hissFilt.frequency.value=1200; hissFilt.Q.value=0.7;
+  hissGain=AC.createGain(); hissGain.gain.value=0.16;
+  s.connect(hissFilt).connect(hissGain).connect(AC.destination); s.start();
+  // dead carrier underneath, drifting
+  carrier=AC.createOscillator(); carrier.type="sine"; carrier.frequency.value=1100;
+  carGain=AC.createGain(); carGain.gain.value=0.012;
+  carrier.connect(carGain).connect(AC.destination); carrier.start();
+  // 28Hz pressure, rises as it acquires you
+  const o=AC.createOscillator(); o.type="sine"; o.frequency.value=28;
+  subGain=AC.createGain(); subGain.gain.value=0;
+  o.connect(subGain).connect(AC.destination); o.start();
+  drift();
+}
+function drift(){ // the dial never sits still
+  if(!AC) return;
+  const t=AC.currentTime;
+  hissFilt.frequency.setTargetAtTime(500+Math.random()*2200,t,0.9);
+  hissFilt.Q.setTargetAtTime(0.5+Math.random()*2.2,t,1.2);
+  carrier.frequency.setTargetAtTime(600+Math.random()*1800,t,1.6);
+  setTimeout(drift,700+Math.random()*1400);
+}
+function ns(){ const s=AC.createBufferSource(); s.buffer=NB; s.loop=true;
+  s.playbackRate.value=0.6+Math.random()*1.7; return s; }
+function pan(p){ if(!AC.createStereoPanner) return null; const q=AC.createStereoPanner(); q.pan.value=p; return q; }
+
+/* a mark = a station tuning in and cutting out.
+   whistle sweeps into the carrier frequency, noise band narrows around it,
+   both stop dead on the beat. The cut is the mark. */
+function mark(lane,t,vol){
+  if(!AC) return; vol=vol===undefined?1:vol;
+  const f=LANE_FREQ[lane], p=pan((lane-1.5)/2.4), lead=0.42;
+  const out=n=>{ if(p){n.connect(p); p.connect(AC.destination);} else n.connect(AC.destination); };
+  // heterodyne whistle sweeping onto frequency
+  const w=AC.createOscillator(); w.type="sine"; const wg=AC.createGain();
+  w.frequency.setValueAtTime(f*(lane%2?1.9:0.42),t-lead);
+  w.frequency.exponentialRampToValueAtTime(f,t);
+  wg.gain.setValueAtTime(0.0001,t-lead);
+  wg.gain.exponentialRampToValueAtTime(0.055*vol,t-0.02);
+  wg.gain.setValueAtTime(0.055*vol,t);
+  wg.gain.exponentialRampToValueAtTime(0.0001,t+0.035);  // dead cut
+  w.connect(wg); out(wg); w.start(t-lead); w.stop(t+0.06);
+  // band narrowing around the station
+  const s=ns(), bp=AC.createBiquadFilter(), g=AC.createGain();
+  bp.type="bandpass"; bp.frequency.setValueAtTime(f*0.55,t-lead); bp.frequency.exponentialRampToValueAtTime(f,t);
+  bp.Q.setValueAtTime(1.2,t-lead); bp.Q.linearRampToValueAtTime(9,t);
+  g.gain.setValueAtTime(0.0001,t-lead);
+  g.gain.exponentialRampToValueAtTime(0.22*vol,t-0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+0.05);
+  s.connect(bp).connect(g); out(g); s.start(t-lead); s.stop(t+0.08);
+}
+function squelch(lane,vol){ // your strike landing
+  if(!AC) return; const t=AC.currentTime, f=LANE_FREQ[lane];
+  const s=ns(), bp=AC.createBiquadFilter(), g=AC.createGain();
+  bp.type="bandpass"; bp.frequency.value=f*1.4; bp.Q.value=14;
+  g.gain.setValueAtTime(0.14*vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.045);
+  s.connect(bp).connect(g).connect(AC.destination); s.start(t); s.stop(t+0.06);
+}
+function dial(){ // a strike into nothing: the dial slips
+  if(!AC) return; const t=AC.currentTime;
+  const s=ns(), bp=AC.createBiquadFilter(), g=AC.createGain();
+  bp.type="bandpass"; bp.frequency.setValueAtTime(2400,t); bp.frequency.exponentialRampToValueAtTime(480,t+0.22);
+  bp.Q.value=2.5;
+  g.gain.setValueAtTime(0.10,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.26);
+  s.connect(bp).connect(g).connect(AC.destination); s.start(t); s.stop(t+0.3);
+}
+function decodeTick(){
+  if(!AC) return; const t=AC.currentTime;
+  const s=ns(), f=AC.createBiquadFilter(), g=AC.createGain();
+  f.type="bandpass"; f.frequency.value=5200; f.Q.value=12;
+  g.gain.setValueAtTime(0.07,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.04);
+  s.connect(f).connect(g).connect(AC.destination); s.start(t); s.stop(t+0.05);
+}
+function closing(kind){
+  if(!AC) return; const t=AC.currentTime;
+  subGain.gain.cancelScheduledValues(t); subGain.gain.setValueAtTime(subGain.gain.value,t);
+  subGain.gain.linearRampToValueAtTime(0.24,t+0.3); subGain.gain.linearRampToValueAtTime(0,t+3.4);
+  if(kind==="TRANSCRIBED"){
+    // the band locks: static gone, one clean tone left, then nothing
+    hissGain.gain.setTargetAtTime(0.0,t,0.35);
+    carrier.frequency.setTargetAtTime(1000,t,0.2);
+    carGain.gain.setTargetAtTime(0.09,t,0.3);
+    carGain.gain.setTargetAtTime(0.0,t+2.4,0.5);
+  } else {
+    hissGain.gain.setTargetAtTime(0.03,t,1.4);
+    carGain.gain.setTargetAtTime(0.0,t,1.0);
+  }
+}
+
+/* ---------- state ---------- */
+const c=document.getElementById("c"),x=c.getContext("2d");
+const W=c.width,H=c.height,LINE=H-140,LEAD=1500;
+const titleP=document.getElementById("titleP"),deadP=document.getElementById("deadP");
+const CASUALTIES=[{n:"ORTEGA, R.",d:14,m:71},{n:"anon",d:0,m:0},{n:"D. QUIJANO",d:31,m:100},
+                  {n:"stopped early",d:6,m:22},{n:"M. SAENZ",d:44,m:100}];
+
+// irregular intervals: a phrase, not a bar. No common divisor by design.
+const GAPS=[230,290,370,430,530,610,730,870];
+
+let state="title",msg="",cipher=[],revealed=[],phrase=[],phraseLen=0,notes=[],
+    nextStart=0,t0=0,match=0,bias=0,biasN=0,decoded=0,dryPhrases=0,hitsThisPhrase=0,
+    phraseEnd=0,phraseEnds=[],flash=0,ending="",echoOn=false;
+
+function reset(){
+  msg=MESSAGES[Math.floor(Math.random()*MESSAGES.length)];
+  cipher=msg.split("").map(ch=>ch===" "?" ":enc(ch));
+  revealed=cipher.map(ch=>ch===" ");
+  match=0; bias=0; biasN=0; decoded=0; dryPhrases=0; hitsThisPhrase=0; flash=0; ending=""; echoOn=false;
+  // the transmission: 5-8 marks at irregular spacings, looped with a dead gap
+  phrase=[]; let at=0; const n=5+Math.floor(Math.random()*4);
+  for(let i=0;i<n;i++){
+    phrase.push({at:at,lane:Math.floor(Math.random()*4)});
+    at+=GAPS[Math.floor(Math.random()*GAPS.length)];
+  }
+  phraseLen=at+700+Math.random()*500;   // the pause where it listens for you
+  notes=[]; nextStart=0; phraseEnd=0; phraseEnds=[];
+  if(subGain) subGain.gain.value=0;
+}
+function spawnPhrase(startMs){
+  for(const p of phrase){
+    const driftMs = bias*(match/100);   // it learns you: the loop slides toward your own timing
+    notes.push({t:startMs+p.at+driftMs,lane:p.lane,judged:false,played:false});
+  }
+  // a queue, not a single value: phrases are spawned ahead of time, so the
+  // next one's end must not overwrite the one still being listened through.
+  phraseEnds.push(startMs+phraseLen);
+}
+
+/* ---------- input ---------- */
+const KEYS={KeyD:0,KeyF:1,KeyJ:2,KeyK:3};
+function strike(lane){
+  if(state!=="play") return;
+  const now=performance.now()-t0;
+  let best=null,bd=1e9;
+  for(const n of notes){ if(n.judged||n.lane!==lane) continue;
+    const d=Math.abs(n.t-now); if(d<bd){bd=d;best=n;} }
+  if(!best||bd>160){ dial(); return; }
+  best.judged=true; hitsThisPhrase++;
+  const acc=1-bd/160;
+  bias=(bias*biasN+(now-best.t))/(biasN+1); biasN++;
+  match=Math.min(100,match+acc*2.6);
+  squelch(lane,0.6+acc*0.7);
+  if(acc>0.35){ reveal(); flash=10; decodeTick(); }
+  if(match>=100) return end("TRANSCRIBED",
+    "It has your timing now. The last thing it played was you, half a beat early, exactly the way you play.");
+}
+function reveal(){ const i=revealed.indexOf(false); if(i<0) return; revealed[i]=true; decoded++; }
+
+window.addEventListener("keydown",e=>{ if(e.repeat) return;
+  if(KEYS[e.code]!==undefined){ e.preventDefault(); initAudio(); strike(KEYS[e.code]); } });
+c.addEventListener("touchstart",e=>{ e.preventDefault(); initAudio();
+  const r=c.getBoundingClientRect();
+  for(const t of e.changedTouches){ strike(Math.min(3,Math.floor((t.clientX-r.left)/(r.width/4)))); } },{passive:false});
+c.addEventListener("mousedown",e=>{ initAudio(); const r=c.getBoundingClientRect();
+  strike(Math.min(3,Math.floor((e.clientX-r.left)/(r.width/4)))); });
+
+/* ---------- loop ---------- */
+function loop(){
+  requestAnimationFrame(loop);
+  if(state==="play"){
+    const now=performance.now()-t0;
+    while(nextStart < now+LEAD){ spawnPhrase(nextStart); nextStart+=phraseLen; }
+    for(const n of notes){
+      // schedule the tune-in well ahead: the whistle is the warning
+      if(!n.played && AC && n.t-now < 520){ n.played=true;
+        mark(n.lane, AC.currentTime+Math.max(0.01,(n.t-now)/1000), 0.9); }
+      if(!n.judged && now-n.t>160){ n.judged=true; n.missed=true; }
+    }
+    if(!echoOn && match>55) echoOn=true;
+    // the echo: it starts answering in your own timing, off to one side
+    if(echoOn && Math.random()<0.010 && AC) mark(Math.floor(Math.random()*4),AC.currentTime+0.45,0.35);
+    if(subGain) subGain.gain.setTargetAtTime(Math.min(0.15,match/100*0.15),AC.currentTime,0.6);
+    // as it acquires you the band cleans up. Clean is not good news.
+    if(hissGain) hissGain.gain.setTargetAtTime(0.16-0.11*(match/100),AC.currentTime,0.8);
+    if(carGain)  carGain.gain.setTargetAtTime(0.012+0.05*(match/100),AC.currentTime,0.8);
+
+    while(phraseEnds.length && now>phraseEnds[0]){
+      phraseEnds.shift();
+      dryPhrases = hitsThisPhrase? 0 : dryPhrases+1; hitsThisPhrase=0;
+      if(dryPhrases>=4) return end("SIGNAL LOST",
+        "You let it repeat and never answered. It stopped. Nothing was decoded and nothing of you was taken.");
+    }
+    notes=notes.filter(n=>now-n.t<400);
+  }
+  draw();
+}
+function draw(){
+  x.fillStyle="#040404"; x.fillRect(0,0,W,H);
+  const now=state==="play"?performance.now()-t0:0;
+  const lw=W/4;
+  for(let i=0;i<4;i++){ x.strokeStyle="rgba(150,150,140,0.10)"; x.strokeRect(i*lw,0,lw,H); }
+  x.strokeStyle="rgba(210,210,200,"+(flash>0?0.9:0.35)+")"; x.lineWidth=1;
+  x.beginPath(); x.moveTo(0,LINE); x.lineTo(W,LINE); x.stroke();
+  if(flash>0) flash--;
+
+  if(state==="play"){
+    for(const n of notes){
+      const d=n.t-now; if(d>LEAD||d<-300) continue;
+      const y=LINE-(d/LEAD)*(LINE-40);
+      const a=n.judged?(n.missed?0.12:0.05):Math.min(1,(1-d/LEAD)*1.1);
+      x.fillStyle="rgba(230,230,220,"+a.toFixed(2)+")";
+      x.fillRect(n.lane*lw+lw/2-26,y-5,52,10);
+    }
+    // ciphertext across the top; letters appear under what you decoded
+    x.font="16px ui-monospace,monospace"; x.textAlign="left";
+    let px=14,py=34;
+    for(let i=0;i<cipher.length;i++){
+      if(px>W-26){ px=14; py+=34; }
+      if(py>190) break;
+      x.fillStyle="rgba(150,150,142,0.55)"; x.fillText(cipher[i],px,py);
+      if(revealed[i]&&cipher[i]!==" "){ x.fillStyle="rgba(235,235,225,0.9)"; x.font="11px ui-monospace,monospace";
+        x.fillText(msg[i],px+2,py+13); x.font="16px ui-monospace,monospace"; }
+      px+=19;
+    }
+    x.font="11px ui-monospace,monospace";
+    x.fillStyle="rgba(180,180,170,0.5)"; x.fillText("DECODED "+decoded,16,H-46);
+    x.fillText("IT HAS "+Math.floor(match)+"% OF YOU",16,H-28);
+    x.strokeStyle="rgba(180,180,170,0.25)"; x.strokeRect(W-186,H-40,170,10);
+    x.fillStyle=match>70?"rgba(220,220,210,0.85)":"rgba(180,180,170,0.45)";
+    x.fillRect(W-186,H-40,170*(match/100),10);
+    // the static thins on screen too, as the band cleans
+    const grain=Math.floor(260*(1-match/100));
+    for(let i=0;i<grain;i++){
+      x.fillStyle="rgba(190,190,180,0.05)";
+      x.fillRect(Math.random()*W,Math.random()*H,1,1);
+    }
+    if(echoOn && Math.random()<0.3){ x.fillStyle="#000"; const sy=Math.random()*H; x.fillRect(0,sy,W,2+Math.random()*10); }
+  }
+  x.fillStyle="rgba(0,0,0,0.18)";
+  for(let y=0;y<H;y+=3) x.fillRect(0,y,W,1);
+}
+
+/* ---------- endings ---------- */
+function end(kind,sub){
+  bassarBindShare("transcript");
+  state="dead"; ending=kind; BASSAR.ended(); closing(kind);
+  document.getElementById("endH").textContent=kind;
+  document.getElementById("endSub").textContent=sub+"  -  "+decoded+" letters decoded, "+Math.floor(match)+"% match.";
+  const po=document.getElementById("plainOut");
+  po.textContent = decoded? cipher.map((ch,i)=>revealed[i]?msg[i]:"\u00b7").join("") : "\u00b7".repeat(Math.min(48,cipher.length));
+  drawCasualties();
+  document.getElementById("capForm").style.display="";
+  document.getElementById("again2").style.display="none";
+  document.getElementById("capMsg").textContent="Add yourself to the record. The list is ordered by how much was understood.";
+  deadP.classList.add("on");
+}
+function drawCasualties(){
+  const cl=document.getElementById("caseList"); cl.innerHTML="";
+  CASUALTIES.slice().sort((a,b)=>b.d-a.d).slice(0,8).forEach(e=>{
+    const d=document.createElement("div"); d.className="case";
+    d.innerHTML="<span>"+e.n+"</span><span>"+e.d+" decoded \u00b7 "+e.m+"% match</span>"; cl.appendChild(d);
+  });
+}
+
+/* ---------- flow ---------- */
+function begin(){
+  initAudio(); reset(); state="play"; t0=performance.now(); BASSAR.run();
+  nextStart=1200; notes=[]; phraseEnds=[];
+  titleP.classList.remove("on"); deadP.classList.remove("on");
+  if(hissGain) hissGain.gain.setTargetAtTime(0.16,AC.currentTime,0.4);
+}
+document.getElementById("startB").addEventListener("click",begin);
+BASSAR.greet();
+document.getElementById("againB").addEventListener("click",begin);
+document.getElementById("again2").addEventListener("click",begin);
+
+document.getElementById("capB").addEventListener("click",()=>{
+  const n=document.getElementById("nameIn").value.trim()||"anon";
+  const v=document.getElementById("capIn").value.trim();
+  const cm=document.getElementById("capMsg"), btn=document.getElementById("capB");
+  btn.disabled=true; cm.textContent="Filing\u2026";
+  BASSAR.record({name:n,contact:v,decoded:decoded,match:Math.floor(match),
+               message:msg,ending:ending,consent:v?1:0}).then(r=>{
+    btn.disabled=false;
+    if(!r||r.ok===false){ cm.textContent="The record did not take. Try it once more."; return; }
+    CASUALTIES.push({n:n,d:decoded,m:Math.floor(match)}); drawCasualties();
+    document.getElementById("capForm").style.display="none";
+    document.getElementById("again2").style.display="";
+    cm.textContent = v ? "Filed. The rest of the key follows when it is ready."
+                       : "Filed under the name only. Nothing else was sent.";
+  });
+});
+
+reset(); loop();
+</script>
+</body>
+</html>

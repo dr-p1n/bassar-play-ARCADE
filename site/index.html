@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BASSAR PLAY</title>
+<meta name="description" content="Three free horror games. Dread is the currency, terror the common tongue.">
+<meta property="og:title" content="BASSAR PLAY">
+<meta property="og:description" content="Three free horror games. Dread is the currency, terror the common tongue.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="/bassar.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>BASSAR PLAY</h1>
+    <p class="lede" style="margin-top:.7em">Dread is the currency, terror the common tongue.</p>
+    <p id="returnLine" class="dim" style="display:none;margin-top:.7em"></p>
+  </header>
+
+  <div class="rule"></div>
+
+  <p class="dim">
+    Three files. Free, and staying free. Each one is a way into the same place,
+    told from a different door — a recovered build, a site nobody has walked since,
+    a dead band with a sentence on it. None of them explains the others.
+    They are not meant to be understood alone.
+  </p>
+
+  <div class="rule"></div>
+
+  <div class="tag">THE FILES</div>
+  <ul class="files" style="margin-top:1em">
+    <li class="file">
+      <a href="/void-drift/">
+        <span class="no">FILE 01</span>
+        <span class="name">VOID//DRIFT</span>
+        <span class="blurb">A recovered build. Contents incomplete. The log fills as you go.</span>
+      </a>
+    </li>
+    <li class="file">
+      <a href="/recovered-records/">
+        <span class="no">FILE 02</span>
+        <span class="name">RECOVERED RECORDS</span>
+        <span class="blurb">You are walking a site nobody has walked since. Listening costs you. So does looking.</span>
+      </a>
+    </li>
+    <li class="file">
+      <a href="/transcript/">
+        <span class="no">FILE 03</span>
+        <span class="name">TRANSCRIPT</span>
+        <span class="blurb">A dead band. Something keeps tuning through it, the same way, at the same intervals.</span>
+      </a>
+    </li>
+  </ul>
+
+  <div class="rule"></div>
+
+  <section>
+    <div class="tag">THE RECORD</div>
+    <h2 style="margin-top:.5em">Add yourself to it.</h2>
+    <p class="dim" style="margin-top:.6em">
+      One list, across all three files. What goes out on it are the things that
+      never fit inside a game — the rest of the key, the unrecovered fragments,
+      the documents the site was carrying. Nothing is for sale here, and the
+      games stay free whether you are on the list or not.
+    </p>
+
+    <form data-bassar-surface="index" data-bassar-game="bassar"
+          data-bassar-done="Filed. You will find the rest of it before anyone else does.">
+      <label class="tag" for="n">NAME AS IT SHOULD BE RECORDED</label>
+      <input id="n" name="name" type="text" maxlength="18" autocomplete="name" placeholder="optional">
+      <input class="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <label class="tag" for="c">CONTACT</label>
+      <input id="c" name="contact" type="text" inputmode="email" autocomplete="email" placeholder="email or phone">
+      <button type="submit">FILE IT</button>
+      <div data-bassar-msg></div>
+    </form>
+  </section>
+
+  <footer>BASSAR</footer>
+</div>
+
+<script src="/bassar.js"></script>
+<script>
+  BASSAR.view("index");
+  bassarBindForms();
+  bassarGreetPage();
+</script>
+</body>
+</html>

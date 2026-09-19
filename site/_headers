@@ -1,0 +1,25 @@
+# ---------------------------------------------------------------------------
+# REMOVE THIS BLOCK AT REAL LAUNCH.
+# While the arcade sits on a borrowed domain (and on *.pages.dev), it should
+# not be indexed: an advisory firm's domain serving a horror arcade leaves a
+# trail in the index that outlives the test week, and the pages.dev copy would
+# otherwise compete with the real domain later.
+/*
+  X-Robots-Tag: noindex, nofollow
+# ---------------------------------------------------------------------------
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), interest-cohort=()
+
+/bassar.css
+  Cache-Control: public, max-age=3600
+
+/bassar.js
+  Cache-Control: public, max-age=3600
+
+# The games are the product. Short cache so a fix reaches players the same day.
+/games/*
+  Cache-Control: public, max-age=600

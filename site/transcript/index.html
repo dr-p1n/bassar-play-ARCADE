@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TRANSCRIPT · BASSAR PLAY</title>
+<meta name="description" content="A dead band. Something keeps tuning through it, the same way, at the same intervals.">
+<meta property="og:title" content="TRANSCRIPT · BASSAR PLAY">
+<meta property="og:description" content="A dead band. Something keeps tuning through it, the same way, at the same intervals.">
+<link rel="stylesheet" href="/bassar.css">
+<style>
+  .stage{
+    aspect-ratio:0.72;
+    max-height:78vh;
+    width:min(100%,calc(78vh * 0.72));
+  }
+</style>
+</head>
+<body>
+<div class="wrap wide">
+
+  <nav class="bar">
+    <a href="/">&larr; BASSAR PLAY</a>
+    <span class="tag">FILE 03 · SIGNAL</span>
+  </nav>
+    <p id="returnLine" class="dim" style="display:none;margin:.9em 0 0"></p>
+
+  <div class="stage">
+    <iframe id="game" data-src="/games/transcript.html" title="TRANSCRIPT"
+            allow="autoplay" loading="eager"></iframe>
+  </div>
+
+  <p class="tag" style="text-align:center">Strike the mark as it crosses the line. D F J K, or the four zones on touch.</p>
+
+  <div class="wrap">
+    <div class="rule"></div>
+
+    <div class="tag">THE FILE</div>
+    <p class="dim" style="margin-top:.7em">It is not music. It is a sentence, struck one mark at a time. Every mark you land on time decodes one letter of it. Every mark you land on time also teaches it your timing.</p>
+
+    <div class="rule"></div>
+
+    <section>
+      <div class="tag">ACCESS · THE REST OF THE KEY</div>
+      <p class="dim" style="margin-top:.7em">The key does not change between runs. Write it down, compare it with the other files, and it will start to give. What the channel never transmits goes to the list, not to the game.</p>
+      <p class="dim" style="margin-top:.7em;color:#4a4a46">
+        One list across all three files. Sign up here and you are on the same record
+        as everyone who walked the others.
+      </p>
+
+      <form data-bassar-surface="drop" data-bassar-game="transcript" data-bassar-done="Filed. The rest of the key follows when it is ready.">
+        <label class="tag" for="n">NAME AS IT SHOULD BE RECORDED</label>
+        <input id="n" name="name" type="text" maxlength="18" autocomplete="name" placeholder="optional">
+        <input class="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <label class="tag" for="c">CONTACT</label>
+        <input id="c" name="contact" type="text" inputmode="email" autocomplete="email" placeholder="email or phone">
+        <button type="submit">REQUEST ACCESS</button>
+        <div data-bassar-msg></div>
+      </form>
+    </section>
+
+    <div class="rule"></div>
+
+    <div class="tag">THE OTHER FILES</div>
+    <div class="also" style="margin-top:.8em"><a href="/void-drift/">FILE 01 · VOID//DRIFT</a><a href="/recovered-records/">FILE 02 · RECOVERED RECORDS</a></div>
+
+    <footer>BASSAR</footer>
+  </div>
+</div>
+
+<script src="/bassar.js"></script>
+<script>
+  bassarFrame("#game");
+  BASSAR.view("transcript");
+  bassarBindForms();
+  bassarGreetPage();
+</script>
+</body>
+</html>

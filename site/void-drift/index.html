@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VOID//DRIFT · BASSAR PLAY</title>
+<meta name="description" content="A recovered build. Contents incomplete.">
+<meta property="og:title" content="VOID//DRIFT · BASSAR PLAY">
+<meta property="og:description" content="A recovered build. Contents incomplete.">
+<link rel="stylesheet" href="/bassar.css">
+<style>
+  .stage{
+    aspect-ratio:0.617;
+    max-height:78vh;
+    width:min(100%,calc(78vh * 0.617));
+  }
+</style>
+</head>
+<body>
+<div class="wrap wide">
+
+  <nav class="bar">
+    <a href="/">&larr; BASSAR PLAY</a>
+    <span class="tag">FILE 01 · RECOVERED BUILD</span>
+  </nav>
+    <p id="returnLine" class="dim" style="display:none;margin:.9em 0 0"></p>
+
+  <div class="stage">
+    <iframe id="game" data-src="/games/void-drift.html" title="VOID//DRIFT"
+            allow="autoplay" loading="eager"></iframe>
+  </div>
+
+  <p class="tag" style="text-align:center">Tap, click, or press SPACE to hold altitude.</p>
+
+  <div class="wrap">
+    <div class="rule"></div>
+
+    <div class="tag">THE FILE</div>
+    <p class="dim" style="margin-top:.7em">Pass the gaps. The log fills as you go, and what it fills with was written by people who were there. Nothing followed them out. That is the part the file keeps returning to.</p>
+
+    <div class="rule"></div>
+
+    <section>
+      <div class="tag">ACCESS · THE REST OF THE FILE</div>
+      <p class="dim" style="margin-top:.7em">Eight fragments are recoverable inside the build. There are more than eight. The ones that were never in the build are sent to the list, not to the game.</p>
+      <p class="dim" style="margin-top:.7em;color:#4a4a46">
+        One list across all three files. Sign up here and you are on the same record
+        as everyone who walked the others.
+      </p>
+
+      <form data-bassar-surface="drop" data-bassar-game="void-drift" data-bassar-done="Filed. The rest of the file follows when it is ready.">
+        <label class="tag" for="n">NAME AS IT SHOULD BE RECORDED</label>
+        <input id="n" name="name" type="text" maxlength="18" autocomplete="name" placeholder="optional">
+        <input class="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <label class="tag" for="c">CONTACT</label>
+        <input id="c" name="contact" type="text" inputmode="email" autocomplete="email" placeholder="email or phone">
+        <button type="submit">REQUEST ACCESS</button>
+        <div data-bassar-msg></div>
+      </form>
+    </section>
+
+    <div class="rule"></div>
+
+    <div class="tag">THE OTHER FILES</div>
+    <div class="also" style="margin-top:.8em"><a href="/recovered-records/">FILE 02 · RECOVERED RECORDS</a><a href="/transcript/">FILE 03 · TRANSCRIPT</a></div>
+
+    <footer>BASSAR</footer>
+  </div>
+</div>
+
+<script src="/bassar.js"></script>
+<script>
+  bassarFrame("#game");
+  BASSAR.view("void-drift");
+  bassarBindForms();
+  bassarGreetPage();
+</script>
+</body>
+</html>
