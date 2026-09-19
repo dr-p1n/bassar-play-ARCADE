@@ -28,6 +28,23 @@ h1{
   font-size:clamp(26px,6.5vmin,46px);letter-spacing:.16em;
   color:#e6e6e0;font-weight:400;line-height:1.15;
 }
+/* The wordmark. Traced from the supplied art and flush-cropped, so the mark's
+   baseline IS its bottom edge — which is what lets PLAY sit on the same line
+   with flex-end. The -.16em pulls PLAY down by the font's descent, since a
+   text line box bottom sits below its baseline and the mark's does not. */
+h1.wordmark{display:flex;align-items:flex-end;gap:.62em;flex-wrap:wrap;letter-spacing:0}
+.wordmark .mark{
+  width:clamp(168px,34vmin,300px);  /* 140px is the legibility floor — stay above it */
+  height:auto;fill:currentColor;display:block;
+}
+.wordmark .play{
+  /* PLAY is the token that separates the arcade from LABS and FM, so it has to
+     read as part of the wordmark rather than as a caption under it. Sized off
+     the mark's cap height, not off body copy. */
+  letter-spacing:.26em;font-size:clamp(13px,2.5vmin,20px);
+  color:#b9b9b4;margin-bottom:-.14em;
+}
+
 h2{
   font-size:clamp(15px,2.4vmin,19px);letter-spacing:.12em;
   color:#e6e6e0;font-weight:400;

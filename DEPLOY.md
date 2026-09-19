@@ -73,9 +73,29 @@ npm run deploy                            # → https://bassar-capture.<sub>.wor
 python3 build.py
 ```
 
-`build.py` writes the client into `ARCADE/*.html` (the standalone itch.io
+`build.py` writes the client into `bassar play/*.html` (the standalone itch.io
 copies), mirrors those into `site/games/`, and regenerates `site/bassar.js`.
+It also stamps the favicon and the share-card tags into all four page heads.
 It is idempotent. Never edit the client inside a game.
+
+### The two constants that name a host
+
+Everything else on the site is root-relative, but two values cannot be:
+
+| constant | file | what breaks if it is wrong |
+|---|---|---|
+| `BASSAR_SITE` | `client/bassar-client.js` | share links point at the wrong origin |
+| `OG_BASE` | `build.py` | `og:image` / `og:url` 404, so shared links preview as a bare grey box |
+
+`OG_BASE` is set to `https://ptytropicsadvisors.com` for the test week. It has
+to be absolute — Facebook and X will not resolve a relative `og:image` — which
+is why it is a build-time constant rather than markup. Change it and rerun the
+build; do not hand-edit the four heads, because the build regenerates them.
+
+This one is easy to forget for a bad reason: the site looks perfect while it is
+wrong. The tags are only read by a scraper, so nothing is visibly broken until
+someone shares a link and it previews as nothing — during the exact week you
+are measuring whether people share.
 
 ```bash
 # 4. the site — direct upload, so nothing auto-ships on a git push
@@ -105,6 +125,12 @@ of a horror arcade on this hostname outlives the test week.
 
 Delete that block **only** at the real-domain launch — README step 7. It is the
 quietest thing on the checklist to forget.
+
+Note the ordering trap: `noindex` is what keeps the borrowed domain out of the
+index, but it does **not** stop a scraper fetching `og:image` for a link someone
+pastes into a chat. Share previews work during the test week even though the
+site is unindexed, which is what you want — but it also means the wordmark and
+the domain travel together, so only send tagged links to people you meant to.
 
 ## Known-open, deliberately
 
