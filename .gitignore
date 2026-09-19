@@ -13,3 +13,10 @@ node_modules/
 # pre-rename leftovers: Worker+KV-era copies of the games, superseded by ARCADE/.
 # Directory names carry a trailing space, hence the escape.
 v1\ /
+
+# python
+__pycache__/
+
+# superseded material, kept rather than deleted. Pre-rename Worker+KV-era
+# copies of the games live here; nothing builds from it.
+attic/
