@@ -49,7 +49,7 @@
     <div class="rule"></div>
     <div id="fragList"></div>
     <div class="rule"></div>
-    <div class="dim" id="capMsg">Leave a contact to receive the rest of the file.</div>
+    <div class="dim" id="capMsg">Leave a contact to receive the fragments that never made the build.</div>
     <div id="capForm">
       <input id="capIn" type="text" inputmode="email" autocomplete="email" placeholder="email or phone">
       <input id="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
@@ -506,7 +506,7 @@ document.getElementById("capB").addEventListener("click",()=>{
     btn.disabled=false;
     if(!r||r.ok===false){ cm.textContent="It did not go through. Try it once more."; return; }
     document.getElementById("capForm").style.display="none";
-    cm.textContent="Received. The rest of the file follows when it is ready.";
+    cm.textContent="Received. What the build left out follows when it is ready.";
   });
 });
 
