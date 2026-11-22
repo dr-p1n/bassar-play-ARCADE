@@ -1,11 +1,16 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "bassar",
+  "workers_dev": true,
   "compatibility_date": "2026-09-11",
   "observability": {
     "enabled": true
   },
   "assets": {
     "directory": "site"
-  }
+  },
+  "routes": [
+    { "pattern": "bassarplay.com", "custom_domain": true },
+    { "pattern": "www.bassarplay.com", "custom_domain": true }
+  ]
 }

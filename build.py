@@ -31,7 +31,7 @@ CLIENT = (ROOT / "client" / "bassar-client.js").read_text(encoding="utf-8")
 # place a host is named, in the same spirit as BASSAR_SITE in the client.
 # Empty means "skip the absolute tags", which is right for local work.
 # CHANGE THIS AT MIGRATION, then rerun the build. See DEPLOY.md.
-OG_BASE = "https://bassar.julioernestolv.workers.dev"
+OG_BASE = "https://bassarplay.com"
 
 GAME_DIR_NAMES = ("bassar play", "ARCADE", "games")
 
