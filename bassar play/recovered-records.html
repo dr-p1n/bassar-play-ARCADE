@@ -478,7 +478,7 @@ function update(dt,now){
 
 function end(kind,sub){
   bassarBindShare("recovered-records");
-  state="dead"; ending=kind; BASSAR.ended();
+  state="dead"; ending=kind; BASSAR.ended(kind);
   if(kind==="FOUND") found(); else branch();
   setBed(0,0); setSub(0); holding=false;
   document.getElementById("endH").textContent=kind;

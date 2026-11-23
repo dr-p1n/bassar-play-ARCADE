@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0a0414">
+<title>CONTACT · BASSAR PLAY</title>
+<meta name="description" content="Reach the house. The files speak for themselves. People can write in here.">
+<meta property="og:title" content="CONTACT · BASSAR PLAY">
+<meta property="og:description" content="Reach the house. The files speak for themselves. People can write in here.">
+<link rel="stylesheet" href="/bassar.css">
+<link rel="stylesheet" href="/fonts/fonts.css">
+<style>
+  .intro-line{
+    font-family:var(--display);font-weight:300;font-stretch:125%;color:var(--flash);
+    font-size:clamp(26px,4.2vw,48px);line-height:1.08;letter-spacing:-.03em;
+    margin:clamp(40px,8vw,88px) 0 .5em;text-shadow:0 2px 24px rgba(5,2,10,.8);
+  }
+  .lead{margin:0;max-width:46ch}
+  #msgForm{margin-top:clamp(26px,5vw,46px)}
+  #msgForm select,#msgForm textarea{
+    width:100%;margin-top:.2em;padding:.6em 0;background:transparent;border:0;border-bottom:1px solid var(--line-hi);
+    border-radius:0;color:var(--flash);font:inherit;font-size:clamp(16px,1.2vw + 9px,19px);
+  }
+  #msgForm select{appearance:none;-webkit-appearance:none;cursor:pointer;
+    background-image:linear-gradient(45deg,transparent 50%,var(--ash) 50%),linear-gradient(135deg,var(--ash) 50%,transparent 50%);
+    background-position:calc(100% - 9px) 55%,calc(100% - 3px) 55%;background-size:6px 6px,6px 6px;background-repeat:no-repeat}
+  #msgForm select:invalid{color:#8a7ba8}
+  #msgForm option{background:#0a0414;color:#e9e4f5}
+  #msgForm textarea{min-height:9em;resize:vertical;line-height:1.5;border:1px solid var(--line-hi);padding:.7em .8em;margin-top:.5em}
+  #msgForm select:focus,#msgForm textarea:focus{outline:none;border-color:var(--mint)}
+</style>
+</head>
+<body>
+<canvas id="field" data-calm="1" aria-hidden="true"></canvas>
+<div class="wrap">
+
+  <!-- ==== BASSAR NAV ==== -->
+  <!-- ==== /BASSAR NAV ==== -->
+  <nav class="bar">
+    <a href="/">&larr; BASSAR PLAY</a>
+    <span class="tag">CONTACT</span>
+  </nav>
+  <p id="returnLine" class="dim" style="display:none;margin:.9em 0 0"></p>
+
+  <h1 class="intro-line">Reach the house.</h1>
+  <p class="dim lead">The files speak for themselves. People can write in here.</p>
+
+  <form id="msgForm" novalidate>
+    <label class="tag" for="aud">Who's writing?</label>
+    <select id="aud" name="audience" required>
+      <option value="" disabled selected>Choose one</option>
+      <option value="player">Player</option>
+      <option value="developer">Developer</option>
+      <option value="press">Press</option>
+      <option value="partners">Platforms and partners</option>
+      <option value="producers">Producers and backers</option>
+    </select>
+
+    <label class="tag" for="nm">Name</label>
+    <input id="nm" name="name" type="text" maxlength="80" autocomplete="name" placeholder="optional">
+
+    <label class="tag" for="ct">Contact</label>
+    <input id="ct" name="contact" type="text" inputmode="email" autocomplete="email" placeholder="email or phone" maxlength="160">
+
+    <label class="tag" for="mg">Message</label>
+    <textarea id="mg" name="message" maxlength="2000" rows="7"></textarea>
+
+    <input class="hp" id="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+    <button type="submit" id="sendB">SEND IT</button>
+    <div data-bassar-msg id="msgOut" role="status"></div>
+  </form>
+
+  <footer>BASSAR</footer>
+</div>
+
+<script src="/field.js"></script>
+<script src="/bassar.js"></script>
+<script>
+(function () {
+  "use strict";
+  var form = document.getElementById("msgForm"), out = document.getElementById("msgOut"), btn = document.getElementById("sendB");
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = { audience: form.audience.value, name: form.name.value.trim(), contact: form.contact.value.trim(), message: form.message.value.trim() };
+    if (!f.audience || !f.contact || !f.message) { out.textContent = "The field is empty. Nothing was sent."; return; }
+    btn.disabled = true; out.textContent = "";
+    BASSAR.contact(f).then(function (r) {
+      btn.disabled = false;
+      if (!r || r.ok === false) { out.textContent = "It did not go through. Try it once more."; return; }
+      form.querySelectorAll("label,select,input,textarea,button").forEach(function (el) { el.style.display = "none"; });
+      out.textContent = "Received. Someone will answer, not something.";
+    });
+  });
+  BASSAR.view("contact");
+  bassarGreetPage();
+})();
+</script>
+</body>
+</html>

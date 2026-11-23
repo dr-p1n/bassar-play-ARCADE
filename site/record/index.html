@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0a0414">
+<title>THE RECORD · BASSAR PLAY</title>
+<meta name="description" content="Everyone who filed. Ordered by how much was understood.">
+<meta property="og:title" content="THE RECORD · BASSAR PLAY">
+<meta property="og:description" content="Everyone who filed. Ordered by how much was understood.">
+<link rel="stylesheet" href="/bassar.css">
+<link rel="stylesheet" href="/fonts/fonts.css">
+<style>
+  .intro-line{
+    font-family:var(--display);font-weight:300;font-stretch:125%;color:var(--flash);
+    font-size:clamp(22px,3.4vw,36px);line-height:1.12;letter-spacing:-.025em;
+    margin:clamp(40px,8vw,88px) 0 clamp(8px,2vw,20px);text-shadow:0 2px 24px rgba(5,2,10,.8);
+  }
+  .board{margin-top:clamp(34px,6vw,64px)}
+  /* One grid for header and rows. A future column ("endings found") is one more
+     track in --cols and one more cell per row; nothing else has to move. */
+  .board .head,.board .row{
+    display:grid;grid-template-columns:minmax(0,1fr) repeat(var(--cols,2),minmax(5.5em,auto));
+    column-gap:clamp(14px,3vw,32px);align-items:baseline;
+  }
+  .board .head{margin-top:1.1em;padding-bottom:.6em;border-bottom:1px solid var(--line)}
+  .board .head span:not(:first-child),.board .row span:not(:first-child){text-align:right}
+  .board ol{list-style:none;margin:0;padding:0}
+  .board .row{padding:.62em 0;border-bottom:1px solid var(--line);color:var(--bone);text-shadow:0 0 12px #05020a}
+  .board .row .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .board .row .v{color:var(--ash);font-variant-numeric:tabular-nums}
+  .board .row.none{display:block;color:var(--ash);border-bottom:0}
+  .board .rest{margin-top:0}
+  .board .rest summary{list-style:none;cursor:pointer;padding:.9em 0 .2em;color:var(--ash);letter-spacing:.14em;
+    transition:color .25s;display:flex;justify-content:space-between;align-items:baseline;user-select:none}
+  .board .rest summary::-webkit-details-marker{display:none}
+  .board .rest summary::after{content:"+";font-size:1.3em;letter-spacing:0}
+  .board .rest[open] summary::after{content:"\2013"}
+  .board .rest summary:hover{color:var(--mint)}
+  .board .go{margin-top:1.1em;display:inline-block;color:var(--ash);text-decoration:none;letter-spacing:.14em;
+    font-size:clamp(11px,1.4vw,12px);text-transform:uppercase;transition:color .25s;text-shadow:0 0 10px #05020a}
+  .board .go:hover{color:var(--mint)}
+</style>
+</head>
+<body>
+<canvas id="field" data-calm="1" aria-hidden="true"></canvas>
+<div class="wrap">
+
+  <!-- ==== BASSAR NAV ==== -->
+<!-- ==== /BASSAR NAV ==== -->
+  <nav class="bar">
+    <a href="/">&larr; BASSAR PLAY</a>
+    <span class="tag">THE RECORD</span>
+  </nav>
+  <p id="returnLine" class="dim" style="display:none;margin:.9em 0 0"></p>
+
+  <p class="intro-line">Everyone who filed. Ordered by how much was understood.</p>
+
+  <section class="board" id="b-void-drift" data-file="void-drift" style="--cols:2">
+    <div class="tag">FILE 01 · VOID//DRIFT</div>
+    <div class="head tag"><span>Name</span><span>Fragments</span><span>Score</span></div>
+    <ol></ol>
+    <details class="rest" hidden><summary class="tag"></summary><ol></ol></details>
+    <a class="go" href="/void-drift/">Run it</a>
+  </section>
+
+  <section class="board" id="b-recovered-records" data-file="recovered-records" style="--cols:2">
+    <div class="tag">FILE 02 · RECOVERED RECORDS</div>
+    <div class="head tag"><span>Name</span><span>Resolved</span><span>Distance</span></div>
+    <ol></ol>
+    <details class="rest" hidden><summary class="tag"></summary><ol></ol></details>
+    <a class="go" href="/recovered-records/">Walk it</a>
+  </section>
+
+  <section class="board" id="b-transcript" data-file="transcript" style="--cols:2">
+    <div class="tag">FILE 03 · TRANSCRIPT</div>
+    <div class="head tag"><span>Name</span><span>Letters</span><span>Match</span></div>
+    <ol></ol>
+    <details class="rest" hidden><summary class="tag"></summary><ol></ol></details>
+    <a class="go" href="/transcript/">Open the channel</a>
+  </section>
+
+  <footer>BASSAR</footer>
+</div>
+
+<script src="/field.js"></script>
+<script src="/bassar.js"></script>
+<script>
+(function () {
+  "use strict";
+  /* names and scores only. The endpoint never returns a contact. */
+  var BOARD_API = "https://bassar-capture.julioernestolv.workers.dev";
+  var TOP = 20;
+
+  /* the games' own pre-seeded casualty lists, kept so no board opens empty.
+     VOID//DRIFT has none: its end screen has never shown a list. */
+  var SEEDS = {
+    "void-drift": [],
+    "recovered-records": [
+      { name: "ORTEGA, R.", resolved: 6 }, { name: "D. QUIJANO", resolved: 4 }, { name: "anon", resolved: 0 },
+      { name: "M. SAENZ", resolved: 9 }, { name: "kept walking", resolved: 1 }
+    ],
+    "transcript": [
+      { name: "ORTEGA, R.", decoded: 14, match: 71 }, { name: "anon", decoded: 0, match: 0 },
+      { name: "D. QUIJANO", decoded: 31, match: 100 }, { name: "stopped early", decoded: 6, match: 22 },
+      { name: "M. SAENZ", decoded: 44, match: 100 }
+    ]
+  };
+
+  /* how many understood, then how well: the same order the worker uses */
+  var KEYS = {
+    "void-drift": ["recovered", "score"],
+    "recovered-records": ["resolved", "distance"],
+    "transcript": ["decoded", "match"]
+  };
+  var CELLS = {
+    "void-drift":        [function (r) { return r.recovered + " / 8"; }, function (r) { return String(r.score); }],
+    "recovered-records": [function (r) { return String(r.resolved); }, function (r) { return r.distance == null ? "—" : r.distance + " m"; }],
+    "transcript":        [function (r) { return String(r.decoded); }, function (r) { return r.match + "%"; }]
+  };
+
+  var SHOWN = 5;   // the top five are always visible; everyone else sits in the drop-down
+
+  function fill(ol, rows, cells) {
+    ol.textContent = "";
+    rows.forEach(function (r) {
+      var li = document.createElement("li"); li.className = "row";
+      var n = document.createElement("span"); n.className = "n"; n.textContent = r.name || "anon"; li.appendChild(n);
+      cells.forEach(function (f) { var s = document.createElement("span"); s.className = "v"; s.textContent = f(r); li.appendChild(s); });
+      ol.appendChild(li);
+    });
+  }
+
+  function render(file, rows) {
+    var k = KEYS[file], cells = CELLS[file];
+    var list = rows.slice().sort(function (a, b) {
+      return (b[k[0]] || 0) - (a[k[0]] || 0) || (b[k[1]] || 0) - (a[k[1]] || 0) || (a._seed ? 1 : 0) - (b._seed ? 1 : 0);
+    }).slice(0, TOP);
+    var sec = document.getElementById("b-" + file), ol = sec.querySelector("ol");
+    var rest = sec.querySelector(".rest");
+    if (!list.length) {
+      ol.textContent = ""; rest.hidden = true;
+      var li = document.createElement("li"); li.className = "row none"; li.textContent = "Nothing filed yet."; ol.appendChild(li); return;
+    }
+    fill(ol, list.slice(0, SHOWN), cells);
+    var more = list.slice(SHOWN);
+    rest.hidden = !more.length;
+    if (more.length) {
+      rest.querySelector("summary").textContent = "The rest \u00b7 " + more.length;
+      fill(rest.querySelector("ol"), more, cells);
+    }
+  }
+
+  function seeded(file) { return SEEDS[file].map(function (s) { var o = {}; for (var k in s) o[k] = s[k]; o._seed = 1; return o; }); }
+  Object.keys(SEEDS).forEach(function (f) { render(f, seeded(f)); });   // paint the seeds at once
+
+  var api = (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).get("api")) || BOARD_API;
+  fetch(api.replace(/\/+$/, "") + "/leaderboard")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) {
+      if (!j || !j.files) return;
+      Object.keys(SEEDS).forEach(function (f) { render(f, (j.files[f] || []).concat(seeded(f))); });
+    })
+    .catch(function () { /* the seeds stay; nothing to explain */ });
+
+  BASSAR.view("record");
+  bassarGreetPage();
+})();
+</script>
+</body>
+</html>

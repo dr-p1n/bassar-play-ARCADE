@@ -537,7 +537,7 @@ function draw(){
 /* ---------- endings ---------- */
 function end(kind,sub){
   bassarBindShare("transcript");
-  state="dead"; ending=kind; BASSAR.ended(); closing(kind);
+  state="dead"; ending=kind; BASSAR.ended(kind); closing(kind);
   document.getElementById("endH").textContent=kind;
   document.getElementById("endSub").textContent=sub+"  -  "+decoded+" letters decoded, "+Math.floor(match)+"% match.";
   const po=document.getElementById("plainOut");

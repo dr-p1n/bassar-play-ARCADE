@@ -361,7 +361,7 @@ function flap(){
 }
 function die(){
   bassarBindShare("void-drift");
-  state="dead"; strike(); shake=22; setSub(0.0); BASSAR.ended();
+  state="dead"; strike(); shake=22; setSub(0.0); BASSAR.ended("TERMINATED");
   document.getElementById("scoreH").textContent=String(score).padStart(2,"0");
   document.getElementById("deadSub").textContent =
     got.length ? got.length+" of "+FRAGMENTS.length+" fragments recovered. The rest stayed where they were."
