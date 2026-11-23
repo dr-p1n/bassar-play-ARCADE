@@ -7,7 +7,8 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const stray = url.hostname.endsWith(".workers.dev") || url.hostname === "www." + CANONICAL;
-    if (stray) {
+    const insecure = url.protocol === "http:" && url.hostname === CANONICAL;
+    if (stray || insecure) {
       url.protocol = "https:";
       url.hostname = CANONICAL;
       url.port = "";

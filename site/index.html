@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0a0414">
 <title>BASSAR PLAY</title>
 <meta name="description" content="Three free horror games. Dread is the currency, terror the common tongue.">
 <meta property="og:title" content="BASSAR PLAY">
@@ -14,79 +15,85 @@
 <meta property="og:url" content="https://bassarplay.com/">
 <meta name="twitter:card" content="summary_large_image">
 <!-- ==== /BASSAR HEAD ==== -->
-<link rel="stylesheet" href="/bassar.css">
+<link rel="preload" href="/fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/landing.css">
 </head>
 <body>
-<div class="wrap">
 
-  <header>
-    <h1 class="wordmark"><svg class="mark" viewBox="0 0 1074 306" role="img" aria-label="BASSAR"><g fill="currentColor"><rect x="0" y="0" width="49" height="70"/><rect x="182" y="70" width="142" height="48"/><rect x="369" y="70" width="142" height="48"/><rect x="556" y="70" width="143" height="48"/><rect x="744" y="70" width="142" height="48"/><rect x="930" y="70" width="144" height="48"/><rect x="0" y="70" width="143" height="49"/><rect x="276" y="118" width="48" height="46"/><rect x="369" y="118" width="49" height="46"/><rect x="556" y="118" width="49" height="46"/><rect x="837" y="118" width="49" height="46"/><rect x="182" y="164" width="142" height="49"/><rect x="369" y="164" width="142" height="49"/><rect x="556" y="164" width="143" height="49"/><rect x="744" y="164" width="142" height="49"/><rect x="930" y="118" width="49" height="105"/><rect x="1026" y="118" width="48" height="105"/><rect x="0" y="119" width="49" height="138"/><rect x="94" y="119" width="49" height="138"/><rect x="182" y="213" width="48" height="44"/><rect x="276" y="213" width="48" height="44"/><rect x="461" y="213" width="50" height="44"/><rect x="649" y="213" width="50" height="44"/><rect x="744" y="213" width="48" height="44"/><rect x="837" y="213" width="49" height="44"/><rect x="930" y="223" width="144" height="47"/><rect x="1006" y="270" width="52" height="1"/><rect x="1006" y="271" width="53" height="1"/><rect x="1007" y="272" width="52" height="2"/><rect x="1007" y="274" width="53" height="1"/><rect x="1008" y="275" width="52" height="2"/><rect x="1009" y="277" width="52" height="3"/><rect x="1010" y="280" width="52" height="3"/><rect x="1011" y="283" width="52" height="3"/><rect x="1012" y="286" width="52" height="3"/><rect x="1013" y="289" width="52" height="3"/><rect x="1014" y="292" width="52" height="3"/><rect x="1015" y="295" width="52" height="3"/><rect x="1016" y="298" width="52" height="3"/><rect x="1017" y="301" width="51" height="1"/><rect x="1017" y="302" width="52" height="2"/><rect x="1018" y="304" width="51" height="1"/><rect x="0" y="257" width="143" height="49"/><rect x="182" y="257" width="142" height="49"/><rect x="369" y="257" width="142" height="49"/><rect x="556" y="257" width="143" height="49"/><rect x="744" y="257" width="142" height="49"/><rect x="930" y="270" width="50" height="36"/><rect x="1018" y="305" width="52" height="1"/></g></svg><span class="play">PLAY</span></h1>
-    <p class="lede" style="margin-top:.7em">Dread is the currency, terror the common tongue.</p>
-    <p id="returnLine" class="dim" style="display:none;margin-top:.7em"></p>
-  </header>
+<canvas id="field" aria-hidden="true"></canvas>
 
-  <div class="rule"></div>
+<header class="hero">
+  <div class="hero-top">
+    <h1 class="wordmark"><svg class="mark" viewBox="0 0 1490 306" role="img" aria-label="BASSAR PLAY"><g fill="currentColor"><rect x="0" y="0" width="49" height="70"/><rect x="182" y="70" width="142" height="48"/><rect x="369" y="70" width="142" height="48"/><rect x="556" y="70" width="143" height="48"/><rect x="744" y="70" width="142" height="48"/><rect x="930" y="70" width="144" height="48"/><rect x="0" y="70" width="143" height="49"/><rect x="276" y="118" width="48" height="46"/><rect x="369" y="118" width="49" height="46"/><rect x="556" y="118" width="49" height="46"/><rect x="837" y="118" width="49" height="46"/><rect x="182" y="164" width="142" height="49"/><rect x="369" y="164" width="142" height="49"/><rect x="556" y="164" width="143" height="49"/><rect x="744" y="164" width="142" height="49"/><rect x="930" y="118" width="49" height="105"/><rect x="1026" y="118" width="48" height="105"/><rect x="0" y="119" width="49" height="138"/><rect x="94" y="119" width="49" height="138"/><rect x="182" y="213" width="48" height="44"/><rect x="276" y="213" width="48" height="44"/><rect x="461" y="213" width="50" height="44"/><rect x="649" y="213" width="50" height="44"/><rect x="744" y="213" width="48" height="44"/><rect x="837" y="213" width="49" height="44"/><rect x="930" y="223" width="144" height="47"/><rect x="1006" y="270" width="52" height="1"/><rect x="1006" y="271" width="53" height="1"/><rect x="1007" y="272" width="52" height="2"/><rect x="1007" y="274" width="53" height="1"/><rect x="1008" y="275" width="52" height="2"/><rect x="1009" y="277" width="52" height="3"/><rect x="1010" y="280" width="52" height="3"/><rect x="1011" y="283" width="52" height="3"/><rect x="1012" y="286" width="52" height="3"/><rect x="1013" y="289" width="52" height="3"/><rect x="1014" y="292" width="52" height="3"/><rect x="1015" y="295" width="52" height="3"/><rect x="1016" y="298" width="52" height="3"/><rect x="1017" y="301" width="51" height="1"/><rect x="1017" y="302" width="52" height="2"/><rect x="1018" y="304" width="51" height="1"/><rect x="0" y="257" width="143" height="49"/><rect x="182" y="257" width="142" height="49"/><rect x="369" y="257" width="142" height="49"/><rect x="556" y="257" width="143" height="49"/><rect x="744" y="257" width="142" height="49"/><rect x="930" y="270" width="50" height="36"/><rect x="1018" y="305" width="52" height="1"/></g><rect class="plate" x="1134" y="150" width="356" height="156"/><g class="ko"><rect x="1162" y="178" width="20" height="20"/><rect x="1182" y="178" width="20" height="20"/><rect x="1202" y="178" width="20" height="20"/><rect x="1162" y="198" width="20" height="20"/><rect x="1202" y="198" width="20" height="20"/><rect x="1162" y="218" width="20" height="20"/><rect x="1182" y="218" width="20" height="20"/><rect x="1202" y="218" width="20" height="20"/><rect x="1162" y="238" width="20" height="20"/><rect x="1162" y="258" width="20" height="20"/><rect x="1242" y="178" width="20" height="20"/><rect x="1242" y="198" width="20" height="20"/><rect x="1242" y="218" width="20" height="20"/><rect x="1242" y="238" width="20" height="20"/><rect x="1242" y="258" width="20" height="20"/><rect x="1262" y="258" width="20" height="20"/><rect x="1282" y="258" width="20" height="20"/><rect x="1322" y="178" width="20" height="20"/><rect x="1342" y="178" width="20" height="20"/><rect x="1362" y="178" width="20" height="20"/><rect x="1322" y="198" width="20" height="20"/><rect x="1362" y="198" width="20" height="20"/><rect x="1322" y="218" width="20" height="20"/><rect x="1342" y="218" width="20" height="20"/><rect x="1362" y="218" width="20" height="20"/><rect x="1322" y="238" width="20" height="20"/><rect x="1362" y="238" width="20" height="20"/><rect x="1322" y="258" width="20" height="20"/><rect x="1362" y="258" width="20" height="20"/><rect x="1402" y="178" width="20" height="20"/><rect x="1442" y="178" width="20" height="20"/><rect x="1402" y="198" width="20" height="20"/><rect x="1442" y="198" width="20" height="20"/><rect x="1422" y="218" width="20" height="20"/><rect x="1422" y="238" width="20" height="20"/><rect x="1422" y="258" width="20" height="20"/></g></svg></h1>
+    <span class="stamp" aria-hidden="true">03<i>:</i>14</span>
+  </div>
 
-  <p class="dim">
-    Three files. Free, and staying free. Separate stories in the same country —
-    a recovered build, a site nobody has walked since, a dead band with a
-    sentence on it. None of them continues another. Each one is whole on its own.
+  <div class="hero-copy">
+    <p class="lede" data-glitch>Dread is the currency,<br>terror the common tongue.</p>
+    <p id="returnLine" style="display:none"></p>
+  </div>
+
+  <p class="hero-note" aria-hidden="true">the heat here holds a shape.</p>
+</header>
+
+<main class="page">
+  <p class="intro">
+    Three files. Free, and staying free. Separate stories in the same country &mdash;
+    a recovered build, a site nobody has walked since, a dead band with a sentence
+    on it. None of them continues another. <em>Each one is whole on its own.</em>
   </p>
 
-  <div class="rule"></div>
-
-  <div class="tag">THE FILES</div>
-  <ul class="files" style="margin-top:1em">
+  <ul class="files">
     <li class="file">
       <a href="/void-drift/">
-        <span class="no">FILE 01</span>
-        <span class="name">VOID//DRIFT</span>
-        <span class="blurb">A recovered build. Contents incomplete. The log fills as you go.</span>
+        <div class="poster"><canvas class="art" data-art="drift" aria-hidden="true"></canvas></div>
+        <span class="name" data-glitch="hover">VOID//DRIFT</span>
       </a>
     </li>
     <li class="file">
       <a href="/recovered-records/">
-        <span class="no">FILE 02</span>
-        <span class="name">RECOVERED RECORDS</span>
-        <span class="blurb">You are walking a site nobody has walked since. Listening costs you. So does looking.</span>
+        <div class="poster"><canvas class="art" data-art="records" aria-hidden="true"></canvas></div>
+        <span class="name" data-glitch="hover">RECOVERED RECORDS</span>
       </a>
     </li>
     <li class="file">
       <a href="/transcript/">
-        <span class="no">FILE 03</span>
-        <span class="name">TRANSCRIPT</span>
-        <span class="blurb">A dead band. Something keeps tuning through it, the same way, at the same intervals.</span>
+        <div class="poster"><canvas class="art" data-art="transcript" aria-hidden="true"></canvas></div>
+        <span class="name" data-glitch="hover">TRANSCRIPT</span>
       </a>
     </li>
   </ul>
 
-  <div class="rule"></div>
-
-  <section>
-    <div class="tag">THE RECORD</div>
-    <h2 style="margin-top:.5em">Add yourself to it.</h2>
-    <p class="dim" style="margin-top:.6em">
-      One list, across all three files. Each file sends its own material, and
-      only its own — what would not fit inside it. Nothing is for sale here, and
-      the games stay free whether you are on the list or not.
-    </p>
+  <section class="record">
+    <div>
+      <h2 data-glitch>Add yourself to it.</h2>
+      <p class="sub">
+        One list, across all three files. Each file sends its own material, and
+        only its own &mdash; what would not fit inside it. Nothing is for sale here,
+        and the games stay free whether you are on the list or not.
+      </p>
+    </div>
 
     <form data-bassar-surface="index" data-bassar-game="bassar"
           data-bassar-done="Filed. The record has you.">
-      <label class="tag" for="n">NAME AS IT SHOULD BE RECORDED</label>
+      <label for="n">Name as it should be recorded</label>
       <input id="n" name="name" type="text" maxlength="18" autocomplete="name" placeholder="optional">
       <input class="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
-      <label class="tag" for="c">CONTACT</label>
+      <label for="c">Contact</label>
       <input id="c" name="contact" type="text" inputmode="email" autocomplete="email" placeholder="email or phone">
-      <button type="submit">FILE IT</button>
+      <button class="file-it" type="submit">File it</button>
       <div data-bassar-msg></div>
     </form>
   </section>
 
   <footer>BASSAR</footer>
-</div>
+</main>
+
 
 <script src="/bassar.js"></script>
+<script src="/field.js"></script>
+<script src="/landing.js"></script>
 <script>
   BASSAR.view("index");
   bassarBindForms();

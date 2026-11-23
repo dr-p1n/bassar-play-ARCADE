@@ -1,108 +1,73 @@
-/* BASSAR — one register, shared by every page.
-   Black, monospace, no colour. The games obey the same rules; if a page
-   needs a hue to make its point, it does not belong in the arcade. */
+/* BASSAR — the wrapper around each game.
+   Gothic purple and acid mint, the same room as the landing. The games
+   themselves keep their own black-and-white UI inside the frame: the first
+   release stays as it shipped, and only the page around it changes. */
+
+:root{
+  --void:#05020a;--ink:#0a0414;--line:#2c1a47;--line-hi:#6a4ba3;
+  --soot:#5d4a82;--ash:#b3a8cc;--bone:#e9e4f5;--flash:#fbf9ff;--mint:#72ffc2;
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --text:"Instrument Sans",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+}
 
 *{margin:0;padding:0;box-sizing:border-box}
-
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;background:var(--void)}
 body{
-  min-height:100%;
-  background:#000;
-  color:#b9b9b4;
-  font-family:ui-monospace,Menlo,Consolas,"Courier New",monospace;
-  font-size:clamp(13px,1.6vmin,15px);
-  line-height:1.65;
-  padding:clamp(28px,6vmin,64px) 16px clamp(48px,10vmin,96px);
+  min-height:100%;background:transparent;color:var(--bone);
+  font-family:var(--text);font-size:clamp(15px,1.1vw + 10px,17px);line-height:1.65;
+  padding:clamp(24px,5vw,56px) 16px clamp(48px,10vmin,96px);overflow-x:hidden;
 }
+a{color:inherit}
+:focus-visible{outline:2px solid var(--mint);outline-offset:4px}
+::selection{background:var(--mint);color:#000}
 
-/* the scanline field the games run under */
-body::after{
-  content:"";position:fixed;inset:0;pointer-events:none;z-index:99;
-  background:repeating-linear-gradient(to bottom,rgba(0,0,0,.20) 0 1px,transparent 1px 3px);
-}
+#field{position:fixed;inset:0;width:100%;height:100%;z-index:-1;display:block;image-rendering:pixelated;image-rendering:crisp-edges;background:var(--void)}
+html.nogl body{background:radial-gradient(120% 90% at 40% 30%,#2a1048,#05020a 70%)}
 
 .wrap{max-width:760px;margin:0 auto}
 .wide{max-width:1100px}
 
-h1{
-  font-size:clamp(26px,6.5vmin,46px);letter-spacing:.16em;
-  color:#e6e6e0;font-weight:400;line-height:1.15;
-}
-/* The wordmark. Traced from the supplied art and flush-cropped, so the mark's
-   baseline IS its bottom edge — which is what lets PLAY sit on the same line
-   with flex-end. The -.16em pulls PLAY down by the font's descent, since a
-   text line box bottom sits below its baseline and the mark's does not. */
-h1.wordmark{display:flex;align-items:flex-end;gap:.62em;flex-wrap:wrap;letter-spacing:0}
-.wordmark .mark{
-  width:clamp(168px,34vmin,300px);  /* 140px is the legibility floor — stay above it */
-  height:auto;fill:currentColor;display:block;
-}
-.wordmark .play{
-  /* PLAY is the token that separates the arcade from LABS and FM, so it has to
-     read as part of the wordmark rather than as a caption under it. Sized off
-     the mark's cap height, not off body copy. */
-  letter-spacing:.26em;font-size:clamp(13px,2.5vmin,20px);
-  color:#b9b9b4;margin-bottom:-.14em;
-}
+.tag{letter-spacing:.16em;color:var(--ash);font-size:clamp(10px,1.4vw,12px);text-transform:uppercase;text-shadow:0 0 10px #05020a}
+.dim{color:var(--ash);text-shadow:0 0 14px #05020a,0 0 4px #05020a}
+.rule{height:1px;background:var(--line);margin:clamp(22px,4vw,38px) 0}
 
-h2{
-  font-size:clamp(15px,2.4vmin,19px);letter-spacing:.12em;
-  color:#e6e6e0;font-weight:400;
-}
-
-.tag{letter-spacing:.22em;color:#5c5c58;font-size:clamp(10px,1.5vmin,11px);text-transform:uppercase}
-.dim{color:#6a6a66}
-.rule{height:1px;background:#242422;margin:clamp(22px,4vmin,38px) 0}
-.lede{color:#cfcfc8;font-size:clamp(14px,2vmin,17px);letter-spacing:.02em}
-
-/* --- the file index --- */
-.files{list-style:none}
-.file{border-top:1px solid #191918}
-/* no bottom rule on the last file — a .rule already follows it */
-.file a{
-  display:grid;grid-template-columns:auto 1fr;gap:.2em clamp(14px,3vmin,28px);
-  align-items:baseline;padding:clamp(16px,3vmin,24px) 0;
-  color:inherit;text-decoration:none;
-}
-.file a:hover,.file a:focus-visible{background:#0a0a09;outline:none}
-.file a:hover .name,.file a:focus-visible .name{color:#fff}
-.file .no{grid-row:1/3;color:#4a4a46;letter-spacing:.18em;font-size:clamp(10px,1.5vmin,11px);padding-top:.35em}
-.file .name{color:#e6e6e0;letter-spacing:.14em;font-size:clamp(15px,2.6vmin,20px)}
-.file .blurb{color:#7a7a75;font-size:clamp(12px,1.7vmin,13px)}
-
-/* --- game frame --- */
-.stage{margin:clamp(18px,3vmin,28px) auto;border:1px solid #1e1e1c;background:#000;line-height:0}
-.stage iframe{display:block;width:100%;height:100%;border:0}
-
-/* --- forms --- */
-form{margin-top:.8em}
-label{display:block;margin-top:.7em}
-input{
-  width:100%;padding:.72em .8em;
-  background:#0a0a0a;border:1px solid #2a2a28;color:#d8d8d2;
-  font:inherit;font-size:inherit;
-}
-input:focus{outline:none;border-color:#4a4a44}
-input::placeholder{color:#55554f}
-button{
-  margin-top:.9em;padding:.78em 1.3em;
-  background:#141412;border:1px solid #3a3a36;color:#d8d8d2;
-  font:inherit;font-size:inherit;letter-spacing:.1em;cursor:pointer;
-}
-button:hover:not(:disabled){background:#1e1e1b;border-color:#54544c}
-button:active{background:#232320}
-button:disabled{opacity:.5;cursor:default}
-.hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
-[data-bassar-msg]{margin-top:.9em;color:#6a6a66;font-size:clamp(12px,1.7vmin,13px);min-height:1.4em}
+h2{font-family:var(--display);font-weight:300;font-stretch:125%;font-size:clamp(20px,2.6vw,28px);letter-spacing:-.01em;color:var(--flash)}
 
 /* --- nav --- */
 .bar{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
-.bar a{color:#6a6a66;text-decoration:none;letter-spacing:.18em;font-size:clamp(10px,1.5vmin,11px)}
-.bar a:hover{color:#cfcfc8}
-.also{display:flex;gap:clamp(16px,4vmin,34px);flex-wrap:wrap}
-.also a{color:#7a7a75;text-decoration:none;letter-spacing:.1em;font-size:clamp(12px,1.7vmin,13px)}
-.also a:hover{color:#e6e6e0}
+.bar a{color:var(--ash);text-decoration:none;letter-spacing:.14em;font-size:clamp(11px,1.4vw,12px);text-transform:uppercase;transition:color .25s}
+.bar a:hover{color:var(--mint)}
+.bar .tag{color:var(--soot)}
 
-footer{margin-top:clamp(40px,7vmin,72px);color:#3f3f3c;letter-spacing:.22em;font-size:clamp(10px,1.5vmin,11px)}
+/* --- game frame: black inside, because the game is --- */
+.stage{
+  margin:clamp(18px,3vw,28px) auto;background:#000;line-height:0;
+  box-shadow:0 0 0 1px var(--line),0 0 90px rgba(114,255,194,.05);
+}
+.stage iframe{display:block;width:100%;height:100%;border:0}
 
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.also{display:flex;gap:clamp(16px,4vw,34px);flex-wrap:wrap}
+.also a{color:var(--ash);text-decoration:none;letter-spacing:.08em;font-size:clamp(12px,1.5vw,14px);transition:color .25s;text-shadow:0 0 10px #05020a}
+.also a:hover{color:var(--mint)}
+
+/* --- forms --- */
+form{margin-top:.8em}
+label{display:block;margin-top:1.1em}
+input{
+  width:100%;margin-top:.2em;padding:.6em 0;background:transparent;border:0;border-bottom:1px solid var(--line-hi);
+  border-radius:0;color:var(--flash);font:inherit;font-size:clamp(16px,1.2vw + 9px,19px);
+}
+input:focus{outline:none;border-bottom-color:var(--mint)}
+input::placeholder{color:#8a7ba8}
+button{
+  margin-top:1.4em;padding:.8em 1.6em;background:transparent;color:var(--mint);border:1px solid var(--mint);
+  font:inherit;font-size:15px;letter-spacing:.06em;cursor:pointer;transition:background .25s,color .25s;
+}
+button:hover:not(:disabled){background:var(--mint);color:#05020a}
+button:disabled{opacity:.5;cursor:default}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+[data-bassar-msg]{margin-top:.9em;color:var(--mint);font-size:15px;min-height:1.4em}
+
+footer{margin-top:clamp(40px,7vw,72px);color:var(--soot);letter-spacing:.3em;font-size:12px}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}

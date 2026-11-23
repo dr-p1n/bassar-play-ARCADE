@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>VOID//DRIFT</title>
+<style>
+  :root { color-scheme: dark; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; user-select:none; }
+  html,body { width:100%; height:100%; background:#000; overflow:hidden; font-family: 'Courier New', monospace; }
+  #wrap { position:relative; width:100vw; height:100vh; display:flex; align-items:center; justify-content:center; background:#000; }
+  canvas { display:block; background:#000; image-rendering: pixelated; max-width:100%; max-height:100%; }
+
+  #scanlines {
+    position:absolute; inset:0; pointer-events:none;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.035) 0px,
+      rgba(255,255,255,0.035) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    mix-blend-mode: overlay;
+    z-index:5;
+  }
+  #vignette {
+    position:absolute; inset:0; pointer-events:none;
+    box-shadow: inset 0 0 150px rgba(0,0,0,0.85);
+    z-index:6;
+  }
+
+  #hud {
+    position:absolute; top:16px; left:0; right:0; text-align:center;
+    color:#fff; font-size:28px; letter-spacing:4px; z-index:7;
+    text-shadow: 0 0 6px rgba(255,255,255,0.6);
+    pointer-events:none;
+  }
+  #hud .best { font-size:12px; opacity:0.5; letter-spacing:2px; display:block; margin-top:4px; }
+
+  #startScreen, #gameOverScreen {
+    position:absolute; inset:0; z-index:10;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    color:#fff; text-align:center; padding:24px;
+    background: rgba(0,0,0,0.0);
+  }
+  #startScreen { display:flex; }
+  #gameOverScreen { display:none; }
+
+  .title { font-size:34px; letter-spacing:8px; margin-bottom:14px; text-shadow:0 0 10px #fff; }
+  .subtitle { font-size:12px; letter-spacing:3px; opacity:0.6; margin-bottom:40px; max-width:320px; line-height:1.8; }
+  .prompt { font-size:13px; letter-spacing:2px; opacity:0.85; border:1px solid #fff; padding:10px 22px; animation: blink 1.4s infinite; }
+  @keyframes blink { 0%,100%{opacity:0.9;} 50%{opacity:0.25;} }
+
+  .goScore { font-size:52px; letter-spacing:2px; margin-bottom:6px; text-shadow:0 0 14px #fff; }
+  .goLabel { font-size:11px; letter-spacing:4px; opacity:0.5; margin-bottom:24px; }
+  .goBest { font-size:12px; letter-spacing:2px; opacity:0.7; margin-bottom:30px; }
+
+  #lorebox {
+    max-width:340px; border:1px solid rgba(255,255,255,0.5); padding:16px 18px;
+    margin-bottom:22px; font-size:11px; line-height:1.9; letter-spacing:0.5px;
+    text-align:left; background:rgba(255,255,255,0.02);
+    display:none;
+  }
+  #lorebox .tag { font-size:9px; letter-spacing:3px; opacity:0.5; display:block; margin-bottom:8px; }
+  #lorebox a {
+    display:inline-block; margin-top:12px; color:#000; background:#fff;
+    padding:6px 12px; text-decoration:none; font-size:10px; letter-spacing:2px;
+    font-weight:bold;
+  }
+  #lorebox a:hover { background:#ccc; }
+
+  #glitchflash {
+    position:absolute; inset:0; z-index:8; pointer-events:none;
+    background:#fff; opacity:0; mix-blend-mode: difference;
+  }
+
+  #muteBtn {
+    position:absolute; bottom:14px; right:14px; z-index:9;
+    color:#fff; opacity:0.4; font-size:11px; letter-spacing:2px;
+    border:1px solid rgba(255,255,255,0.4); padding:6px 10px; background:transparent;
+    cursor:pointer; font-family:inherit;
+  }
+  #muteBtn:hover { opacity:0.9; }
+
+  .glitching canvas { animation: shakeit 0.15s linear; }
+  @keyframes shakeit {
+    0% { transform: translate(0,0); }
+    25% { transform: translate(-2px,1px); }
+    50% { transform: translate(2px,-1px); }
+    75% { transform: translate(-1px,-2px); }
+    100% { transform: translate(0,0); }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="400" height="640"></canvas>
+  <div id="scanlines"></div>
+  <div id="vignette"></div>
+  <div id="glitchflash"></div>
+  <div id="hud"><span id="scoreDisplay">0</span><span class="best" id="bestDisplay">BEST 0</span></div>
+
+  <div id="startScreen">
+    <div class="title">VOID//DRIFT</div>
+    <div class="subtitle">A SIGNAL FALLS THROUGH THE DARK.<br>ONE TOUCH KEEPS IT ALIVE.<br>THE DARK DOES NOT NEGOTIATE.</div>
+    <div class="prompt">TAP OR PRESS SPACE TO BEGIN</div>
+  </div>
+
+  <div id="gameOverScreen">
+    <div class="goScore" id="finalScore">0</div>
+    <div class="goLabel">SIGNAL LOST</div>
+    <div class="goBest" id="finalBest">BEST 0</div>
+    <div id="lorebox">
+      <span class="tag">// RECOVERED FRAGMENT</span>
+      <span id="loreText"></span>
+      <br>
+      <a href="#" id="loreLink" target="_blank" rel="noopener">ACCESS THE FULL RECORD →</a>
+    </div>
+    <div class="prompt">TAP OR PRESS SPACE TO RETRY</div>
+  </div>
+
+  <button id="muteBtn">SOUND: ON</button>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- CONFIG ----------
+  const EXTERNAL_URL = "https://example.com/the-full-record";
+  const W = 400, H = 640;
+  const GRAVITY = 0.45;
+  const FLAP = -7.6;
+  const PIPE_W = 62;
+  const PIPE_SPEED_BASE = 2.6;
+  const PIPE_GAP_BASE = 168;
+  const PIPE_INTERVAL = 96; // frames between pipes at base speed
+  const GLITCH_THRESHOLDS = [10, 33, 66, 100];
+
+  const LORE_FRAGMENTS = {
+    10: "\"...the first ones who fell did not scream. They counted. Numbers are the only prayer the void accepts...\"",
+    33: "\"...thirty-three thresholds mark the collapse of the outer ring. Those who cross unwitting are already counted among the missing...\"",
+    66: "\"...at the second gate the drone becomes a voice, and the voice knows your name before you have spoken it aloud...\"",
+    100: "\"...one hundred is not a number. It is a door. Whoever opens it does not return with the same face...\""
+  };
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const scoreDisplay = document.getElementById('scoreDisplay');
+  const bestDisplay = document.getElementById('bestDisplay');
+  const startScreen = document.getElementById('startScreen');
+  const gameOverScreen = document.getElementById('gameOverScreen');
+  const finalScore = document.getElementById('finalScore');
+  const finalBest = document.getElementById('finalBest');
+  const lorebox = document.getElementById('lorebox');
+  const loreText = document.getElementById('loreText');
+  const loreLink = document.getElementById('loreLink');
+  const glitchflash = document.getElementById('glitchflash');
+  const wrap = document.getElementById('wrap');
+  const muteBtn = document.getElementById('muteBtn');
+
+  loreLink.href = EXTERNAL_URL;
+
+  // ---------- STORAGE ----------
+  let best = 0;
+  try { best = parseInt(localStorage.getItem('voiddrift_best') || '0', 10) || 0; } catch(e) {}
+  bestDisplay.textContent = 'BEST ' + best;
+
+  // ---------- AUDIO ----------
+  let audioCtx = null;
+  let muted = false;
+  let droneOsc = null, droneGain = null, droneOsc2 = null;
+  let audioStarted = false;
+
+  function initAudio() {
+    if (audioStarted) return;
+    audioStarted = true;
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      startDrone();
+    } catch(e) { audioCtx = null; }
+  }
+
+  function startDrone() {
+    if (!audioCtx || muted) return;
+    droneGain = audioCtx.createGain();
+    droneGain.gain.value = 0.05;
+    droneGain.connect(audioCtx.destination);
+
+    droneOsc = audioCtx.createOscillator();
+    droneOsc.type = 'sine';
+    droneOsc.frequency.value = 28;
+    droneOsc.connect(droneGain);
+    droneOsc.start();
+
+    droneOsc2 = audioCtx.createOscillator();
+    droneOsc2.type = 'sine';
+    droneOsc2.frequency.value = 30.5;
+    const g2 = audioCtx.createGain();
+    g2.gain.value = 0.03;
+    droneOsc2.connect(g2);
+    g2.connect(audioCtx.destination);
+    droneOsc2.start();
+  }
+
+  function setDroneFreq(hz) {
+    if (droneOsc) droneOsc.frequency.setTargetAtTime(hz, audioCtx.currentTime, 0.3);
+    if (droneOsc2) droneOsc2.frequency.setTargetAtTime(hz + 2.5, audioCtx.currentTime, 0.3);
+  }
+
+  function playClick() {
+    if (!audioCtx || muted) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'square';
+    o.frequency.value = 880;
+    g.gain.value = 0.08;
+    o.connect(g); g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.06);
+    o.start();
+    o.stop(audioCtx.currentTime + 0.07);
+  }
+
+  function playPassBlip() {
+    if (!audioCtx || muted) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sine';
+    o.frequency.value = 1400;
+    g.gain.value = 0.05;
+    o.connect(g); g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(0.05, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+    o.start();
+    o.stop(audioCtx.currentTime + 0.1);
+  }
+
+  function playStaticBurst() {
+    if (!audioCtx || muted) return;
+    const bufferSize = audioCtx.sampleRate * 0.35;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i=0; i<bufferSize; i++) {
+      data[i] = (Math.random()*2-1) * (1 - i/bufferSize);
+    }
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    const g = audioCtx.createGain();
+    g.gain.value = 0.35;
+    noise.connect(g); g.connect(audioCtx.destination);
+    noise.start();
+
+    // also a low thud
+    const o = audioCtx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.value = 60;
+    const g2 = audioCtx.createGain();
+    g2.gain.value = 0.2;
+    o.connect(g2); g2.connect(audioCtx.destination);
+    g2.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    g2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+    o.start();
+    o.stop(audioCtx.currentTime + 0.4);
+  }
+
+  function playGlitchStinger() {
+    if (!audioCtx || muted) return;
+    const o = audioCtx.createOscillator();
+    o.type = 'sawtooth';
+    const g = audioCtx.createGain();
+    o.frequency.setValueAtTime(220, audioCtx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.5);
+    g.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime + 0.5);
+  }
+
+  muteBtn.addEventListener('click', () => {
+    muted = !muted;
+    muteBtn.textContent = 'SOUND: ' + (muted ? 'OFF' : 'ON');
+    if (droneGain) droneGain.gain.value = muted ? 0 : 0.05;
+  });
+
+  // ---------- GAME STATE ----------
+  let state = 'start'; // start | playing | dead
+  let bird, pipes, frame, score, speed, gap, glitchLevel, shakeFrames, chromAberr;
+
+  function resetGame() {
+    bird = { x: W*0.28, y: H/2, vy: 0, r: 10, rot:0 };
+    pipes = [];
+    frame = 0;
+    score = 0;
+    speed = PIPE_SPEED_BASE;
+    gap = PIPE_GAP_BASE;
+    glitchLevel = 0;
+    shakeFrames = 0;
+    chromAberr = 0;
+    scoreDisplay.textContent = '0';
+  }
+
+  function spawnPipe() {
+    const margin = 60;
+    const gapY = margin + Math.random() * (H - margin*2 - gap);
+    pipes.push({ x: W + PIPE_W, gapY: gapY, passed:false });
+  }
+
+  function flap() {
+    initAudio();
+    if (state === 'start') {
+      state = 'playing';
+      startScreen.style.display = 'none';
+      resetGame();
+      bird.vy = FLAP;
+      playClick();
+      return;
+    }
+    if (state === 'dead') {
+      state = 'start';
+      gameOverScreen.style.display = 'none';
+      startScreen.style.display = 'flex';
+      return;
+    }
+    if (state === 'playing') {
+      bird.vy = FLAP;
+      playClick();
+    }
+  }
+
+  function checkGlitch() {
+    for (const t of GLITCH_THRESHOLDS) {
+      if (score === t && glitchLevel < GLITCH_THRESHOLDS.indexOf(t)+1) {
+        glitchLevel = GLITCH_THRESHOLDS.indexOf(t) + 1;
+        shakeFrames = 24;
+        chromAberr = 6 + glitchLevel*2;
+        setDroneFreq(28 + glitchLevel*14);
+        playGlitchStinger();
+        flashScreen();
+      }
+    }
+  }
+
+  function flashScreen() {
+    glitchflash.style.opacity = '0.5';
+    setTimeout(()=>{ glitchflash.style.opacity = '0'; }, 90);
+  }
+
+  function die() {
+    state = 'dead';
+    playStaticBurst();
+    if (score > best) {
+      best = score;
+      try { localStorage.setItem('voiddrift_best', String(best)); } catch(e) {}
+    }
+    finalScore.textContent = score;
+    finalBest.textContent = 'BEST ' + best;
+    bestDisplay.textContent = 'BEST ' + best;
+
+    // lore unlock: find highest threshold reached
+    let unlocked = null;
+    for (const t of GLITCH_THRESHOLDS) if (score >= t) unlocked = t;
+    if (unlocked) {
+      loreText.textContent = LORE_FRAGMENTS[unlocked];
+      lorebox.style.display = 'block';
+    } else {
+      lorebox.style.display = 'none';
+    }
+
+    setTimeout(()=>{ gameOverScreen.style.display = 'flex'; }, 260);
+  }
+
+  // ---------- UPDATE ----------
+  function update() {
+    if (state !== 'playing') return;
+    frame++;
+
+    // difficulty ramp
+    speed = PIPE_SPEED_BASE + Math.min(score * 0.045, 3.2);
+    gap = Math.max(PIPE_GAP_BASE - score*0.9, 108);
+
+    bird.vy += GRAVITY;
+    bird.y += bird.vy;
+    bird.rot = Math.max(-0.5, Math.min(1.2, bird.vy * 0.08));
+
+    if (frame % Math.max(40, Math.round(PIPE_INTERVAL - score*0.6)) === 0) {
+      spawnPipe();
+    }
+
+    for (const p of pipes) {
+      p.x -= speed;
+      if (!p.passed && p.x + PIPE_W < bird.x) {
+        p.passed = true;
+        score++;
+        scoreDisplay.textContent = score;
+        playPassBlip();
+        checkGlitch();
+      }
+    }
+    pipes = pipes.filter(p => p.x > -PIPE_W - 5);
+
+    // collisions
+    if (bird.y - bird.r < 0 || bird.y + bird.r > H) {
+      die();
+      return;
+    }
+    for (const p of pipes) {
+      const withinX = bird.x + bird.r > p.x && bird.x - bird.r < p.x + PIPE_W;
+      if (withinX) {
+        const topEdge = p.gapY - gap/2;
+        const botEdge = p.gapY + gap/2;
+        if (bird.y - bird.r < topEdge || bird.y + bird.r > botEdge) {
+          die();
+          return;
+        }
+      }
+    }
+
+    if (shakeFrames > 0) shakeFrames--;
+  }
+
+  // ---------- RENDER ----------
+  function drawBackground() {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,W,H);
+
+    // faint grid horizon lines for depth
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    const off = (frame*speed*0.3) % 40;
+    for (let y = -40; y < H; y += 40) {
+      ctx.beginPath();
+      ctx.moveTo(0, y+off);
+      ctx.lineTo(W, y+off);
+      ctx.stroke();
+    }
+  }
+
+  function drawPipes() {
+    for (const p of pipes) {
+      const topEdge = p.gapY - gap/2;
+      const botEdge = p.gapY + gap/2;
+
+      ctx.save();
+      ctx.strokeStyle = '#fff';
+      ctx.fillStyle = '#000';
+      ctx.lineWidth = 2;
+
+      // top
+      ctx.fillRect(p.x, 0, PIPE_W, topEdge);
+      ctx.strokeRect(p.x, 0, PIPE_W, topEdge);
+      // bottom
+      ctx.fillRect(p.x, botEdge, PIPE_W, H-botEdge);
+      ctx.strokeRect(p.x, botEdge, PIPE_W, H-botEdge);
+
+      // chromatic aberration ghost edges when glitching
+      if (chromAberr > 0) {
+        ctx.globalAlpha = 0.5;
+        ctx.strokeStyle = '#f00';
+        ctx.strokeRect(p.x - chromAberr*0.3, 0, PIPE_W, topEdge);
+        ctx.strokeRect(p.x - chromAberr*0.3, botEdge, PIPE_W, H-botEdge);
+        ctx.strokeStyle = '#0ff';
+        ctx.strokeRect(p.x + chromAberr*0.3, 0, PIPE_W, topEdge);
+        ctx.strokeRect(p.x + chromAberr*0.3, botEdge, PIPE_W, H-botEdge);
+        ctx.globalAlpha = 1;
+      }
+      ctx.restore();
+    }
+  }
+
+  function drawBird() {
+    ctx.save();
+    ctx.translate(bird.x, bird.y);
+    ctx.rotate(bird.rot);
+    ctx.strokeStyle = '#fff';
+    ctx.fillStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-bird.r, -bird.r*0.6);
+    ctx.lineTo(bird.r*1.3, 0);
+    ctx.lineTo(-bird.r, bird.r*0.6);
+    ctx.closePath();
+    ctx.fill();
+
+    if (chromAberr > 0) {
+      ctx.globalAlpha = 0.4;
+      ctx.strokeStyle = '#f00';
+      ctx.beginPath();
+      ctx.moveTo(-bird.r - chromAberr*0.2, -bird.r*0.6);
+      ctx.lineTo(bird.r*1.3 - chromAberr*0.2, 0);
+      ctx.lineTo(-bird.r - chromAberr*0.2, bird.r*0.6);
+      ctx.stroke();
+      ctx.strokeStyle = '#0ff';
+      ctx.beginPath();
+      ctx.moveTo(-bird.r + chromAberr*0.2, -bird.r*0.6);
+      ctx.lineTo(bird.r*1.3 + chromAberr*0.2, 0);
+      ctx.lineTo(-bird.r + chromAberr*0.2, bird.r*0.6);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+
+  function render() {
+    ctx.save();
+    if (shakeFrames > 0) {
+      const dx = (Math.random()-0.5) * Math.min(shakeFrames, 10);
+      const dy = (Math.random()-0.5) * Math.min(shakeFrames, 10);
+      ctx.translate(dx, dy);
+      if (chromAberr > 0) chromAberr = Math.max(0, chromAberr - 0.25);
+    }
+    drawBackground();
+    drawPipes();
+    if (state !== 'start') drawBird();
+    else {
+      // idle floating bird preview
+      bird.y = H/2 + Math.sin(frame*0.05)*14;
+      drawBird();
+    }
+    ctx.restore();
+  }
+
+  function loop() {
+    frame_global();
+    requestAnimationFrame(loop);
+  }
+
+  function frame_global() {
+    if (state === 'start') frame++;
+    update();
+    render();
+  }
+
+  // ---------- INPUT ----------
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      flap();
+    }
+  });
+  wrap.addEventListener('pointerdown', (e) => {
+    if (e.target === muteBtn) return;
+    flap();
+  });
+
+  // ---------- INIT ----------
+  resetGame();
+  loop();
+
+})();
+</script>
+</body>
+</html>

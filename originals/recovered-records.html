@@ -1,0 +1,693 @@
+<!doctype html><html><head><meta charset="utf8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recovered Records</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;600&display=swap">
+<style>
+  :root{
+    --ground:#07080A;
+    --panel:#0C0E11;
+    --line:#E8E4DC;
+    --dim:#565B60;
+    --dimmer:#2A2E33;
+    --signal:#C2402E;
+    --mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --disp:"IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  body{
+    background:var(--ground);
+    color:var(--line);
+    font-family:var(--mono);
+    margin:0;
+    padding-block:24px;
+    padding-left:16px;
+    padding-right:16px;
+    display:flex;
+    justify-content:center;
+    -webkit-font-smoothing:antialiased;
+  }
+  .shell{width:100%;max-width:860px;display:flex;flex-direction:column;gap:14px}
+
+  header{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 16px}
+  h1{
+    font-family:var(--disp);
+    font-weight:600;
+    font-size:clamp(20px,3.4vw,28px);
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    margin:0;
+    text-wrap:balance;
+  }
+  .sub{color:var(--dim);font-size:11px;letter-spacing:.16em;text-transform:uppercase}
+
+  .stage{position:relative;border:1px solid var(--dimmer);background:#000}
+  canvas{display:block;width:100%;height:auto;image-rendering:auto}
+
+  .hud{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr auto;
+    gap:10px 18px;
+    align-items:end;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+  }
+  .meter-label{display:flex;justify-content:space-between;color:var(--dim);margin-bottom:5px}
+  .meter-label b{color:var(--line);font-weight:500;font-variant-numeric:tabular-nums}
+  .track{height:3px;background:var(--dimmer);position:relative;overflow:hidden}
+  .fill{position:absolute;inset:0 auto 0 0;background:var(--line)}
+  .fill.exposure{background:var(--signal)}
+  .fill.sound{background:var(--dim)}
+  .dist{text-align:right;color:var(--dim)}
+  .dist b{display:block;font-family:var(--disp);font-size:26px;letter-spacing:.06em;color:var(--line);font-variant-numeric:tabular-nums;font-weight:600}
+
+  .hint{color:var(--dim);font-size:11px;letter-spacing:.1em;line-height:1.7}
+  .hint kbd{
+    font-family:var(--mono);color:var(--line);border:1px solid var(--dimmer);
+    padding:1px 6px;font-size:10px;letter-spacing:.08em;
+  }
+
+  .overlay{
+    position:absolute;inset:0;background:rgba(7,8,10,.94);
+    display:flex;flex-direction:column;justify-content:center;
+    padding:clamp(18px,4vw,40px);gap:18px;
+  }
+  .overlay[hidden]{display:none}
+  .cause{
+    font-family:var(--disp);font-weight:600;letter-spacing:.2em;text-transform:uppercase;
+    font-size:clamp(16px,2.6vw,22px);color:var(--signal);
+  }
+  .readout{display:flex;flex-wrap:wrap;gap:6px 32px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+  .readout span b{color:var(--line);font-weight:500;font-variant-numeric:tabular-nums}
+  .entry{display:flex;flex-wrap:wrap;gap:8px}
+  input[type=text]{
+    flex:1 1 180px;min-width:0;background:transparent;border:0;border-bottom:1px solid var(--dim);
+    color:var(--line);font-family:var(--mono);font-size:13px;letter-spacing:.14em;
+    text-transform:uppercase;padding:7px 2px;
+  }
+  input[type=text]:focus{outline:none;border-bottom-color:var(--line)}
+  button{
+    background:transparent;color:var(--line);border:1px solid var(--dim);
+    font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    padding:9px 18px;cursor:pointer;
+  }
+  button:hover{border-color:var(--line)}
+  button:focus-visible,input:focus-visible{outline:1px solid var(--line);outline-offset:2px}
+
+  .records{border-top:1px solid var(--dimmer);padding-top:14px}
+  .records h2{
+    font-family:var(--mono);font-weight:400;font-size:11px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--dim);margin:0 0 10px;
+  }
+  ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px;max-height:190px;overflow-y:auto}
+  li{
+    display:grid;grid-template-columns:2ch 1fr auto auto;gap:14px;align-items:baseline;
+    font-size:12px;letter-spacing:.08em;padding:4px 0;color:var(--dim);
+  }
+  li .idx{color:var(--dimmer);font-variant-numeric:tabular-nums}
+  li .who{color:var(--line);text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  li .num{font-variant-numeric:tabular-nums;color:var(--line)}
+  li .fate{font-size:10px;letter-spacing:.14em;text-transform:uppercase}
+  li.mine{background:rgba(194,64,46,.1)}
+  li.mine .who{color:var(--signal)}
+
+  footer{color:var(--dimmer);font-size:10px;letter-spacing:.16em;text-transform:uppercase;border-top:1px solid var(--dimmer);padding-top:12px}
+  @media (max-width:520px){
+    .hud{grid-template-columns:repeat(3,1fr)}
+    .dist{grid-column:1 / -1;text-align:left}
+    li{grid-template-columns:2ch 1fr auto;gap:10px}
+    li .fate{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <header>
+    <h1>Recovered Records</h1>
+    <span class="sub">Site 04 &middot; prototype build</span>
+  </header>
+
+  <div class="stage">
+    <canvas id="cv" width="1280" height="620" aria-label="Corridor view"></canvas>
+    <div class="overlay" id="over" hidden>
+      <div class="cause" id="cause">Found</div>
+      <div class="readout">
+        <span>Understanding <b id="rDist">0</b>&thinsp;m</span>
+        <span>Resolved <b id="rRes">0</b> of <b id="rGl">0</b> looks</span>
+        <span>Sight spent <b id="rSight">0</b>%</span>
+        <span>Sound spent <b id="rSound">0</b>%</span>
+      </div>
+      <form class="entry" id="entry">
+        <input type="text" id="name" maxlength="16" placeholder="Name for the record" autocomplete="off" spellcheck="false">
+        <button type="submit">File it</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="hud">
+    <div>
+      <div class="meter-label"><span>Sight</span><b id="mSight">100</b></div>
+      <div class="track"><div class="fill" id="fSight"></div></div>
+    </div>
+    <div>
+      <div class="meter-label"><span>Sound</span><b id="mSound">100</b></div>
+      <div class="track"><div class="fill sound" id="fSound"></div></div>
+    </div>
+    <div>
+      <div class="meter-label"><span>Exposure</span><b id="mExp">0</b></div>
+      <div class="track"><div class="fill exposure" id="fExp"></div></div>
+    </div>
+    <div class="dist"><b id="mDist">0</b>Understanding</div>
+  </div>
+
+  <p class="hint">
+    <b>Hold</b> <kbd>Space</kbd> to listen. Sound bleeds away the whole time you hold it — waiting costs.<br>
+    <b>Tap</b> <kbd>Space</kbd> to see. A glance lasts a fraction of a second, and every time something resolves inside one, sight takes a hit — understanding costs. Looking is also what marks you.<br>
+    Do nothing and you walk on deaf and blind. Neither sense comes back. Touch works the same: press and hold, or tap.
+  </p>
+
+  <div class="records">
+    <h2>Recovered records</h2>
+    <ol id="list"></ol>
+  </div>
+
+  <footer>No exit. Only how far in.</footer>
+</div>
+
+<script>
+const CONFIG = {
+  walkSpeed:        14,    // world units per second
+  tapMs:            180,   // release inside this window counts as a tap, not a hold
+  glanceMs:         420,   // how long one tap keeps the world resolved
+  sightPerResolve:  7,     // sight % lost each time something resolves during a glance
+  soundDrain:       2.1,   // sound % per second while holding to listen — the trickle
+  exposurePerGlance:13,    // exposure % added by each look
+  exposureDecay:    9,     // exposure % per second while not looking
+  hazardGapMin:     26,    // world units
+  hazardGapMax:     52,
+  cueLead:          1.5,   // seconds of warning before contact
+  noiseAlpha:       0.30,  // blind-view grain strength
+  footstepBPM:      104,
+  subHz:            28,    // sub-bass bed — pressure, not pitch
+  threatAudible:    0.30,  // exposure fraction above which you can hear it
+  threatVisible:    0.42,  // exposure fraction above which a glance shows the absence
+  startSpacing:     46
+};
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+const HORIZON = H * 0.44;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const el = id => document.getElementById(id);
+const over = el('over');
+
+const SEED = [
+  ['M. ARANDA', 812, 'found'],
+  ['CORVUS', 744, 'struck'],
+  ['J. HEATH', 690, 'found'],
+  ['NINE OF WANDS', 655, 'struck'],
+  ['E. SOLIS', 601, 'found'],
+  ['ANON', 558, 'struck'],
+  ['R. DELGADO', 503, 'found'],
+  ['THE SURVEYOR', 470, 'found']
+];
+let records = SEED.map(([who, dist, fate]) => ({who, dist, fate, mine:false}));
+
+let S = null;
+function newRun(){
+  return {
+    z: 0, sight: 100, sound: 100, exposure: 0,
+    holding: false, pressT: 0, glanceLeft: 0, glances: 0,
+    side: Math.random() < 0.5 ? -1 : 1, sideT: 4, breathT: 3,
+    hazards: [CONFIG.startSpacing, CONFIG.startSpacing + gap(), CONFIG.startSpacing + gap()*2],
+    over: false, cause: '', resolved: 0, cuedFor: -1, t: 0, step: 0, flash: 0
+  };
+}
+function gap(){ return CONFIG.hazardGapMin + Math.random()*(CONFIG.hazardGapMax-CONFIG.hazardGapMin); }
+
+/* ---------- audio ---------- */
+let AC=null, master=null, started=false;
+let windGain=null, windFilt=null, subOsc=null, subGain=null;
+
+function pinkBuffer(seconds){
+  const n = Math.floor(AC.sampleRate * seconds);
+  const buf = AC.createBuffer(1, n, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+  for(let i=0;i<n;i++){
+    const w = Math.random()*2-1;
+    b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759; b2=0.96900*b2+w*0.1538520;
+    b3=0.86650*b3+w*0.3104856; b4=0.55000*b4+w*0.5329522; b5=-0.7616*b5-w*0.0168980;
+    d[i]=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11; b6=w*0.115926;
+  }
+  return buf;
+}
+function whiteBuffer(seconds, curve){
+  const n = Math.max(1, Math.floor(AC.sampleRate * seconds));
+  const buf = AC.createBuffer(1, n, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i=0;i<n;i++){
+    const env = Math.pow(1 - i/n, curve);
+    d[i] = (Math.random()*2-1) * env;
+  }
+  return buf;
+}
+function audioInit(){
+  if(started) return; started = true;
+  AC = new (window.AudioContext||window.webkitAudioContext)();
+  master = AC.createGain(); master.gain.value = 0; master.connect(AC.destination);
+
+  // leaf-litter wind bed — pink noise, not a drone
+  const wind = AC.createBufferSource();
+  wind.buffer = pinkBuffer(4); wind.loop = true;
+  windFilt = AC.createBiquadFilter(); windFilt.type='lowpass'; windFilt.frequency.value = 700; windFilt.Q.value = 0.4;
+  windGain = AC.createGain(); windGain.gain.value = 0.10;
+  wind.connect(windFilt).connect(windGain).connect(master); wind.start();
+
+  // 28 Hz sub bed — pressure, not pitch
+  subOsc = AC.createOscillator(); subOsc.type='sine'; subOsc.frequency.value = CONFIG.subHz;
+  subGain = AC.createGain(); subGain.gain.value = 0.0;
+  subOsc.connect(subGain).connect(master); subOsc.start();
+}
+function setAudible(on){
+  if(!AC) return;
+  master.gain.setTargetAtTime(on ? 0.95 : 0.0, AC.currentTime, 0.06);
+}
+function play(node, gainVal, pan){
+  const g = AC.createGain(); g.gain.value = gainVal;
+  if(pan !== undefined && AC.createStereoPanner){
+    const p = AC.createStereoPanner(); p.pan.value = pan;
+    node.connect(g).connect(p).connect(master);
+  } else {
+    node.connect(g).connect(master);
+  }
+}
+// boot, two layers: body thump + dry scuff
+function footstep(vol, pan, muffle){
+  if(!AC) return;
+  const t = AC.currentTime;
+  const body = AC.createOscillator(); body.type='sine';
+  body.frequency.setValueAtTime(96 + Math.random()*14, t);
+  body.frequency.exponentialRampToValueAtTime(48, t+0.10);
+  const bg = AC.createGain();
+  bg.gain.setValueAtTime(vol*0.5, t);
+  bg.gain.exponentialRampToValueAtTime(0.0001, t+0.13);
+  const bp = (pan !== undefined && AC.createStereoPanner) ? AC.createStereoPanner() : null;
+  if(bp){ bp.pan.value = pan; body.connect(bg).connect(bp).connect(master); }
+  else body.connect(bg).connect(master);
+  body.start(t); body.stop(t+0.15);
+
+  const scuff = AC.createBufferSource(); scuff.buffer = whiteBuffer(0.15, 2.4);
+  const f = AC.createBiquadFilter(); f.type='bandpass';
+  f.frequency.value = muffle ? 900 : 2100; f.Q.value = 0.7;
+  const sg = AC.createGain(); sg.gain.value = vol*0.34;
+  const sp = (pan !== undefined && AC.createStereoPanner) ? AC.createStereoPanner() : null;
+  if(sp){ sp.pan.value = pan; scuff.connect(f).connect(sg).connect(sp).connect(master); }
+  else scuff.connect(f).connect(sg).connect(master);
+  scuff.start(t);
+}
+// something ahead: a branch giving way
+function cueSnap(vol){
+  if(!AC) return;
+  const t = AC.currentTime;
+  const snap = AC.createBufferSource(); snap.buffer = whiteBuffer(0.06, 5);
+  const hp = AC.createBiquadFilter(); hp.type='highpass'; hp.frequency.value = 1400;
+  play(snap.connect(hp), vol*0.5); snap.start(t);
+
+  const body = AC.createBufferSource(); body.buffer = whiteBuffer(0.26, 3);
+  const bq = AC.createBiquadFilter(); bq.type='bandpass'; bq.Q.value = 7;
+  bq.frequency.setValueAtTime(940, t);
+  bq.frequency.exponentialRampToValueAtTime(260, t+0.22);
+  const g = AC.createGain(); g.gain.value = vol*0.55;
+  body.connect(bq).connect(g).connect(master); body.start(t);
+}
+// the eye opening — wet, close, no beep
+function blinkSound(vol){
+  if(!AC) return;
+  const t = AC.currentTime;
+  const b = AC.createBufferSource(); b.buffer = whiteBuffer(0.09, 3.2);
+  const f = AC.createBiquadFilter(); f.type='lowpass';
+  f.frequency.setValueAtTime(2600, t);
+  f.frequency.exponentialRampToValueAtTime(420, t+0.08);
+  const g = AC.createGain(); g.gain.value = vol;
+  b.connect(f).connect(g).connect(master); b.start(t);
+}
+// it is close: breath, off to one side
+function breath(vol, pan){
+  if(!AC) return;
+  const t = AC.currentTime;
+  const b = AC.createBufferSource(); b.buffer = whiteBuffer(0.5, 1.1);
+  const f = AC.createBiquadFilter(); f.type='bandpass'; f.frequency.value = 480; f.Q.value = 1.4;
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol, t+0.16);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+0.5);
+  const p = AC.createStereoPanner ? AC.createStereoPanner() : null;
+  if(p){ p.pan.value = pan; b.connect(f).connect(g).connect(p).connect(master); }
+  else b.connect(f).connect(g).connect(master);
+  b.start(t);
+}
+function endSound(found){
+  if(!AC) return;
+  const t = AC.currentTime;
+  const o = AC.createOscillator(); o.type='sine';
+  o.frequency.setValueAtTime(found ? 74 : 130, t);
+  o.frequency.exponentialRampToValueAtTime(found ? 21 : 34, t + (found ? 2.0 : 0.7));
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.55, t+0.06);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + (found ? 2.2 : 0.8));
+  o.connect(g).connect(master); o.start(t); o.stop(t + (found ? 2.4 : 1.0));
+
+  const air = AC.createBufferSource(); air.buffer = whiteBuffer(found ? 1.8 : 0.4, found ? 0.6 : 3);
+  const f = AC.createBiquadFilter(); f.type='lowpass'; f.frequency.value = found ? 900 : 320;
+  const ag = AC.createGain(); ag.gain.value = found ? 0.26 : 0.42;
+  air.connect(f).connect(ag).connect(master); air.start(t);
+}
+
+/* ---------- input ---------- */
+function down(e){
+  audioInit();
+  if(AC && AC.state === 'suspended') AC.resume();
+  if(S.over) return;
+  if(e) e.preventDefault();
+  if(S.holding) return;
+  S.holding = true; S.pressT = S.t;
+  setAudible(S.sound > 0);
+}
+function up(e){
+  if(e) e.preventDefault();
+  if(!S || !S.holding) return;
+  const heldFor = (S.t - S.pressT) * 1000;
+  S.holding = false;
+  setAudible(false);
+  if(heldFor <= CONFIG.tapMs && !S.over) glance();
+}
+function glance(){
+  S.glanceLeft = CONFIG.glanceMs / 1000;
+  S.glances++;
+  S.exposure = Math.min(100, S.exposure + CONFIG.exposurePerGlance);
+  if(S.sight > 0 && AC){
+    setAudible(true);
+    blinkSound(0.16);
+    setTimeout(() => { if(S && !S.holding && !S.over) setAudible(false); }, 260);
+  }
+}
+addEventListener('keydown', e => { if(e.code==='Space' && !e.repeat) down(e); });
+addEventListener('keyup',   e => { if(e.code==='Space') up(e); });
+cv.addEventListener('pointerdown', down);
+addEventListener('pointerup', up);
+addEventListener('pointercancel', up);
+addEventListener('blur', () => up());
+
+/* ---------- projection ---------- */
+const proj = z => 1 / (1 + z * 0.055);
+const yAt  = z => HORIZON + (H - HORIZON) * proj(z);
+const halfAt = z => (W * 0.46) * proj(z);
+
+/* ---------- render ---------- */
+function drawSighted(){
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+  const cx = W/2;
+  const jitter = reduce ? 0 : (Math.random()-0.5) * 1.4;
+
+  ctx.strokeStyle = '#E8E4DC'; ctx.lineWidth = 1.2;
+
+  // corridor edges
+  ctx.beginPath();
+  ctx.moveTo(cx - halfAt(0) + jitter, yAt(0));
+  ctx.lineTo(cx - halfAt(140), yAt(140));
+  ctx.moveTo(cx + halfAt(0) + jitter, yAt(0));
+  ctx.lineTo(cx + halfAt(140), yAt(140));
+  ctx.stroke();
+
+  // horizon
+  ctx.strokeStyle = 'rgba(232,228,220,0.22)';
+  ctx.beginPath(); ctx.moveTo(0, HORIZON); ctx.lineTo(W, HORIZON); ctx.stroke();
+
+  // scrolling ribs
+  const first = Math.ceil(S.z / 8) * 8;
+  for(let i=0;i<20;i++){
+    const worldZ = first + i*8;
+    const z = worldZ - S.z;
+    if(z < 0.4 || z > 150) continue;
+    const y = yAt(z), h2 = halfAt(z);
+    const a = 0.42 * (1 - z/150);
+    ctx.strokeStyle = 'rgba(232,228,220,' + a.toFixed(3) + ')';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - h2, y); ctx.lineTo(cx - h2, y - (H - HORIZON) * 0.30 * proj(z));
+    ctx.moveTo(cx + h2, y); ctx.lineTo(cx + h2, y - (H - HORIZON) * 0.30 * proj(z));
+    ctx.moveTo(cx - h2 * 0.28, y); ctx.lineTo(cx + h2 * 0.28, y);
+    ctx.stroke();
+  }
+
+  // hazards
+  for(const hz of S.hazards){
+    const z = hz - S.z;
+    if(z < 0 || z > 150) continue;
+    const y = yAt(z), h2 = halfAt(z) * 0.92;
+    const a = Math.min(1, 1.15 - z/150);
+    ctx.strokeStyle = 'rgba(232,228,220,' + a.toFixed(3) + ')';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(cx - h2, y);
+    ctx.lineTo(cx - h2 * 0.34, y - (H - HORIZON) * 0.16 * proj(z));
+    ctx.lineTo(cx + h2 * 0.34, y - (H - HORIZON) * 0.16 * proj(z));
+    ctx.lineTo(cx + h2, y);
+    ctx.stroke();
+  }
+
+  // it is standing where the drawing stops
+  drawAbsence(S.exposure/100);
+
+  // the cost of resolving something
+  if(S.flash > 0){
+    ctx.fillStyle = 'rgba(232,228,220,' + (S.flash*0.34).toFixed(3) + ')';
+    ctx.fillRect(0,0,W,H);
+  }
+
+  // exposure vignette — it is looking back
+  if(S.exposure > 12){
+    const g = ctx.createRadialGradient(cx, HORIZON, W*0.10, cx, HORIZON, W*0.62);
+    g.addColorStop(0, 'rgba(194,64,46,0)');
+    g.addColorStop(1, 'rgba(194,64,46,' + (S.exposure/100*0.34).toFixed(3) + ')');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  }
+}
+
+/* Never drawn — only subtracted. Wherever it stands, the corridor's line work
+   simply isn't there. No outline, no shape, no face. Absence at a location. */
+function drawAbsence(threat){
+  if(threat < CONFIG.threatVisible) return;
+  const k = (threat - CONFIG.threatVisible) / (1 - CONFIG.threatVisible); // 0..1
+  const cx = W/2;
+  const z = 34 - k*26;                    // closer as it gets bolder
+  const p = proj(z);
+  const baseY = yAt(z);
+  const x = cx + S.side * halfAt(z) * (0.86 - k*0.22);
+  const w = (W * 0.19) * p * (0.75 + k*0.9);
+  const h = (H - HORIZON) * 1.55 * p * (0.9 + k*0.5);
+  const wob = reduce ? 0 : Math.sin(S.t*2.3)*1.6*k;
+
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.moveTo(x - w/2 + wob, baseY + 6);
+  ctx.lineTo(x - w/2*0.72 + wob, baseY - h*0.62);
+  ctx.lineTo(x - w/2*0.30, baseY - h);
+  ctx.lineTo(x + w/2*0.34, baseY - h*0.97);
+  ctx.lineTo(x + w/2*0.80 - wob, baseY - h*0.55);
+  ctx.lineTo(x + w/2 - wob, baseY + 6);
+  ctx.closePath();
+  ctx.fill();
+
+  // at close range it takes a bite out of the horizon too
+  if(k > 0.55){
+    ctx.fillRect(x - w*0.75, HORIZON - 2, w*1.5, 4);
+  }
+}
+
+let grain = null;
+function drawBlind(){
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+  if(!grain) grain = ctx.createImageData(W, H);
+  const d = grain.data;
+  const amp = reduce ? 26 : 74;
+  for(let i=0;i<d.length;i+=4){
+    const v = Math.random()*amp;
+    d[i]=v; d[i+1]=v; d[i+2]=v; d[i+3]=255*CONFIG.noiseAlpha;
+  }
+  ctx.putImageData(grain, 0, 0);
+  // blind, you don't see it — the grain just goes quiet where it is
+  const threat = S.exposure/100;
+  if(threat > CONFIG.threatAudible){
+    const k = (threat - CONFIG.threatAudible) / (1 - CONFIG.threatAudible);
+    const gx = W/2 + S.side * W*0.30;
+    const g = ctx.createRadialGradient(gx, HORIZON + 40, 10, gx, HORIZON + 40, W*0.30);
+    g.addColorStop(0, 'rgba(0,0,0,' + (0.85*k).toFixed(3) + ')');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  }
+  const sway = reduce ? 0 : Math.sin(S.t*1.9)*2.2;
+  ctx.strokeStyle = 'rgba(232,228,220,0.10)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, HORIZON + sway); ctx.lineTo(W, HORIZON + sway); ctx.stroke();
+  ctx.font = '500 13px "IBM Plex Mono", monospace';
+  ctx.fillStyle = 'rgba(194,64,46,0.5)';
+  if(S.sight <= 0) ctx.fillText('NOTHING LEFT TO SEE', 20, H - 44);
+  if(S.sound <= 0) ctx.fillText('NOTHING LEFT TO HEAR', 20, H - 22);
+}
+
+/* ---------- loop ---------- */
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(0.05, (now - last)/1000);
+  last = now;
+  if(!S.over) tick(dt);
+  (S.glanceLeft > 0 && S.sight > 0) ? drawSighted() : drawBlind();
+  hud();
+  requestAnimationFrame(frame);
+}
+
+function tick(dt){
+  S.t += dt;
+  S.z += CONFIG.walkSpeed * dt;
+  if(S.glanceLeft > 0) S.glanceLeft = Math.max(0, S.glanceLeft - dt);
+  const seeing    = S.glanceLeft > 0 && S.sight > 0;
+  const listening = S.holding && S.sound > 0;
+
+  if(S.flash > 0) S.flash = Math.max(0, S.flash - dt*3.4);
+
+  const threat = S.exposure/100;
+  const clarity = S.sound/100;
+
+  if(listening){
+    S.sound = Math.max(0, S.sound - CONFIG.soundDrain*dt);
+    S.step += dt;
+    const period = 60/CONFIG.footstepBPM;
+    if(S.step >= period){
+      S.step -= period;
+      footstep(0.30 * clarity, 0, false);
+      // it walks too, just behind the beat, off to one side
+      if(threat > CONFIG.threatAudible){
+        const lag = period * (0.36 + Math.random()*0.14);
+        const pan = S.side * (0.75 - threat*0.5);
+        const vol = 0.16 * clarity * (threat - CONFIG.threatAudible) / (1 - CONFIG.threatAudible);
+        setTimeout(() => { if(S && !S.over) footstep(vol, pan, true); }, lag*1000);
+      }
+    }
+    // breath, rarer, closer
+    S.breathT -= dt;
+    if(threat > 0.55 && S.breathT <= 0){
+      S.breathT = 2.2 + Math.random()*2.6;
+      breath(0.13 * clarity * threat, S.side * 0.85);
+    }
+  }
+  if(!seeing) S.exposure = Math.max(0, S.exposure - CONFIG.exposureDecay*dt);
+
+  // it drifts from one side to the other
+  S.sideT -= dt;
+  if(S.sideT <= 0){ S.sideT = 3.5 + Math.random()*4; S.side = -S.side; }
+
+  // beds respond to proximity and to what's left of your hearing
+  if(AC && windFilt){
+    const nearest = S.hazards.find(h => h - S.z > 0);
+    const d = nearest ? nearest - S.z : 100;
+    windFilt.frequency.setTargetAtTime(340 + Math.max(0, 90 - d) * 7, AC.currentTime, 0.25);
+    windGain.gain.setTargetAtTime(0.10 * clarity, AC.currentTime, 0.3);
+    subGain.gain.setTargetAtTime(0.05 + threat * 0.30, AC.currentTime, 0.4);
+  }
+
+  // cue — only while you still have hearing
+  const next = S.hazards.find(h => h - S.z > 0);
+  if(next !== undefined){
+    const eta = (next - S.z) / CONFIG.walkSpeed;
+    if(eta <= CONFIG.cueLead && S.cuedFor !== next){
+      S.cuedFor = next;
+      if(listening) cueSnap(0.34 * clarity);
+    }
+  }
+
+  // contact — resolving something is what costs sight
+  for(let i=0;i<S.hazards.length;i++){
+    if(S.hazards[i] - S.z <= 0){
+      if(!seeing){ end('Struck blind'); return; }
+      S.sight = Math.max(0, S.sight - CONFIG.sightPerResolve);
+      S.resolved++;
+      S.flash = 1;
+      S.hazards.splice(i,1);
+      S.hazards.push(S.hazards[S.hazards.length-1] + gap());
+      i--;
+    }
+  }
+
+  if(S.exposure >= 100){ end('Found'); return; }
+}
+
+function end(cause){
+  S.over = true; S.cause = cause;
+  S.holding = false; S.glanceLeft = 0; setAudible(true);
+  if(AC){ endSound(cause === 'Found'); setTimeout(() => setAudible(false), 2400); }
+  el('cause').textContent = cause;
+  el('rDist').textContent = Math.floor(S.z);
+  el('rRes').textContent = S.resolved;
+  el('rGl').textContent = S.glances;
+  el('rSight').textContent = Math.round(100 - S.sight);
+  el('rSound').textContent = Math.round(100 - S.sound);
+  over.hidden = false;
+  el('name').focus();
+}
+
+function hud(){
+  el('mSight').textContent = Math.round(S.sight);
+  el('mSound').textContent = Math.round(S.sound);
+  el('mExp').textContent = Math.round(S.exposure);
+  el('mDist').textContent = Math.floor(S.z);
+  el('fSight').style.width = S.sight + '%';
+  el('fSound').style.width = S.sound + '%';
+  el('fExp').style.width = S.exposure + '%';
+}
+
+el('entry').addEventListener('submit', e => {
+  e.preventDefault();
+  const who = (el('name').value.trim() || 'ANON').toUpperCase();
+  records.forEach(r => r.mine = false);
+  records.push({ who, dist: Math.floor(S.z), fate: S.cause === 'Found' ? 'found' : 'struck', mine:true });
+  records.sort((a,b) => b.dist - a.dist);
+  paint();
+  el('name').value = '';
+  over.hidden = true;
+  S = newRun();
+});
+
+function paint(){
+  const list = el('list');
+  list.innerHTML = '';
+  records.forEach((r, i) => {
+    const li = document.createElement('li');
+    if(r.mine) li.className = 'mine';
+    li.innerHTML = '<span class="idx">' + String(i+1).padStart(2,'0') + '</span>' +
+                   '<span class="who"></span>' +
+                   '<span class="num">' + r.dist + '</span>' +
+                   '<span class="fate">' + r.fate + '</span>';
+    li.querySelector('.who').textContent = r.who;
+    list.appendChild(li);
+  });
+}
+
+function start(){
+  S = newRun();
+  paint();
+  requestAnimationFrame(t => { last = t; frame(t); });
+}
+start();
+</script>
+
+</body></html>

@@ -1,0 +1,152 @@
+/* BASSAR landing — a place, not a console.
+   Gothic purple and acid mint. The fog behind the page is the only pixel
+   layer (plus the wordmark); mint is the only light in the room: the slit,
+   the cursor, the PLAY block, the things you can act on. */
+
+:root{
+  --void:#05020a;
+  --ink:#0a0414;
+  --line:#2c1a47;
+  --line-hi:#6a4ba3;
+  --soot:#5d4a82;
+  --ash:#b3a8cc;
+  --bone:#e9e4f5;
+  --flash:#fbf9ff;
+  --mint:#72ffc2;
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --text:"Instrument Sans",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --gutter:clamp(20px,5vw,56px);
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;background:var(--void)}
+body{
+  background:transparent;color:var(--bone);
+  font-family:var(--text);font-size:clamp(16px,1.1vw + 11px,18px);line-height:1.65;
+  min-height:100%;overflow-x:hidden;
+}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--mint);outline-offset:4px}
+::selection{background:var(--mint);color:#000}
+
+/* the field: one fixed sheet of dithered fog behind everything.
+   It is drawn small and scaled up, so the pixels stay hard. */
+#field{
+  position:fixed;inset:0;width:100%;height:100%;z-index:-1;display:block;
+  image-rendering:pixelated;image-rendering:crisp-edges;background:var(--void);
+}
+html.nogl body{background:radial-gradient(120% 90% at 40% 30%,#2a1048,#05020a 70%)}
+
+/* ---------- hero ---------- */
+.hero{position:relative;height:min(100svh,940px);min-height:580px;overflow:hidden}
+.hero-note{
+  position:absolute;right:var(--gutter);top:clamp(64px,7vw,92px);
+  font-size:clamp(13px,1.2vw,15px);color:var(--ash);text-shadow:0 0 14px #000;
+}
+.hero-top{
+  position:absolute;left:0;right:0;top:0;
+  display:flex;justify-content:space-between;align-items:flex-start;gap:20px;
+  padding:clamp(22px,4vw,44px) var(--gutter);
+}
+h1.wordmark{font-weight:400;line-height:0}
+/* BASSAR and the PLAY block are one drawing: the block is cut out of the mark's own grid */
+.wordmark .mark{width:clamp(230px,31vw,430px);height:auto;display:block;color:var(--flash)}
+.wordmark .plate{fill:var(--mint)}
+.wordmark .ko{fill:#0a0414}
+.stamp{
+  font-variant-numeric:tabular-nums;letter-spacing:.14em;
+  font-size:clamp(12px,1.3vw,14px);color:var(--ash);padding-top:.4em;
+}
+.stamp i{font-style:normal;color:var(--mint);animation:blink 1.6s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+.hero-copy{
+  position:absolute;left:0;right:0;bottom:0;
+  padding:0 var(--gutter) clamp(36px,7vw,84px);max-width:1280px;
+}
+.lede{
+  font-family:var(--display);font-weight:300;font-stretch:125%;
+  font-size:clamp(30px,5.7vw,80px);line-height:1.06;letter-spacing:-.03em;
+  color:var(--flash);text-wrap:balance;text-shadow:0 2px 28px rgba(5,2,10,.8);
+}
+.hero-copy #returnLine{margin-top:1.1em;color:var(--mint);font-size:clamp(15px,1.5vw,18px);max-width:46ch}
+
+/* ---------- page ---------- */
+.page{max-width:1240px;margin:0 auto;padding:0 var(--gutter)}
+.intro{
+  padding:clamp(48px,9vw,110px) 0 clamp(48px,8vw,96px);
+  max-width:34em;color:#d6cfe8;font-size:clamp(17px,1.3vw + 11px,21px);line-height:1.6;
+  text-shadow:0 0 14px #05020a,0 0 4px #05020a;
+}
+.intro em{font-style:normal;color:var(--mint)}
+
+/* ---------- the three files: posters, level, name only ---------- */
+.files{
+  list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:clamp(16px,2.6vw,36px);align-items:start;
+}
+.file a{display:block;text-decoration:none;color:inherit}
+.poster{
+  position:relative;aspect-ratio:2/3;overflow:hidden;background:var(--ink);
+  box-shadow:0 0 0 1px var(--line);transition:transform .5s ease,box-shadow .5s ease;
+}
+.poster canvas{position:absolute;inset:0;width:100%;height:100%;display:block;filter:brightness(.92);transition:filter .5s ease}
+.file a:hover .poster,.file a:focus-visible .poster{transform:translateY(-6px);box-shadow:0 0 0 1px var(--mint)}
+.file a:hover .poster canvas,.file a:focus-visible .poster canvas{filter:brightness(1.14)}
+.file .name{
+  display:block;margin-top:18px;font-family:var(--display);font-weight:500;font-stretch:125%;
+  font-size:clamp(13px,1.35vw,17px);letter-spacing:.1em;line-height:1.3;color:var(--bone);
+  text-shadow:0 0 10px #05020a;transition:color .3s;
+}
+.file a:hover .name,.file a:focus-visible .name{color:var(--mint)}
+
+/* ---------- the record ---------- */
+.record{
+  margin-top:clamp(72px,12vw,150px);padding:clamp(36px,7vw,84px) 0 0;
+  border-top:1px solid var(--line);
+  display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:clamp(32px,7vw,96px);
+}
+.record h2{
+  font-family:var(--display);font-weight:300;font-stretch:125%;
+  font-size:clamp(26px,3.7vw,50px);line-height:1.1;letter-spacing:-.025em;color:var(--flash);
+}
+.record .sub{margin-top:1em;color:var(--ash);max-width:32em;font-size:clamp(15px,1.1vw + 9px,17px);text-shadow:0 0 14px #05020a,0 0 4px #05020a}
+form{margin-top:0}
+label{display:block;margin-top:1.4em;color:var(--ash);font-size:14px;letter-spacing:.02em;text-shadow:0 0 8px #05020a}
+input{
+  width:100%;margin-top:.35em;padding:.55em 0 .6em;
+  background:transparent;border:0;border-bottom:1px solid var(--line-hi);border-radius:0;
+  color:var(--flash);font:inherit;font-size:clamp(17px,1.2vw + 10px,20px);
+}
+input:focus{outline:none;border-bottom-color:var(--mint)}
+input::placeholder{color:#8a7ba8}
+button.file-it{
+  margin-top:1.8em;padding:.85em 1.8em;background:transparent;color:var(--mint);
+  border:1px solid var(--mint);font:inherit;font-size:16px;letter-spacing:.06em;cursor:pointer;
+  transition:background .25s,color .25s;
+}
+button.file-it:hover:not(:disabled){background:var(--mint);color:#05020a}
+button.file-it:disabled{opacity:.5;cursor:default}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+[data-bassar-msg]{margin-top:1em;color:var(--mint);min-height:1.5em;font-size:16px}
+
+footer{padding:clamp(64px,10vw,120px) 0 clamp(40px,6vw,64px);color:var(--soot);letter-spacing:.3em;font-size:12px}
+
+/* ---------- glitching headlines ---------- */
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.gl .w{display:inline-block;white-space:nowrap}
+.gl.pending .c{opacity:0}
+.gl.chroma{text-shadow:-.04em 0 rgba(114,255,194,.85),.04em 0 rgba(170,92,255,.85);transform:translateX(.01em)}
+
+/* ---------- small screens ---------- */
+@media (max-width:860px){
+  .files{grid-template-columns:1fr;gap:clamp(32px,8vw,48px)}
+  .poster{aspect-ratio:4/3}
+  .record{grid-template-columns:1fr}
+  .hero-note{display:none}
+  .hero{min-height:540px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}

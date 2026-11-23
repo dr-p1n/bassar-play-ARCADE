@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>VOID//DRIFT</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;overflow:hidden;
+    font-family:ui-monospace,Menlo,Consolas,"Courier New",monospace;color:#b9b9b4}
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  #stage{position:relative;width:min(100vw,calc(100vh*0.617));height:min(100vh,calc(100vw/0.617))}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated}
+  .panel{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+    padding:6% 8%;background:rgba(0,0,0,.88);font-size:clamp(11px,2.6vmin,15px);line-height:1.5}
+  .panel.on{display:flex}
+  h1{font-size:clamp(20px,6vmin,34px);letter-spacing:.18em;color:#e6e6e0;font-weight:400;margin-bottom:.6em}
+  .dim{color:#6a6a66}
+  .frag{color:#9a9a94;margin:.25em 0;font-size:clamp(10px,2.3vmin,13px)}
+  input{width:100%;margin:.6em 0;padding:.7em;background:#0a0a0a;border:1px solid #2a2a28;
+    color:#d8d8d2;font:inherit;font-size:clamp(11px,2.6vmin,14px)}
+  button{margin-top:.4em;padding:.75em 1em;background:#141412;border:1px solid #3a3a36;
+    color:#d8d8d2;font:inherit;font-size:clamp(11px,2.6vmin,14px);cursor:pointer;letter-spacing:.08em}
+  button:active{background:#232320}
+  .rule{height:1px;background:#242422;margin:1em 0}
+  .tag{letter-spacing:.22em;color:#5c5c58;font-size:clamp(9px,2.1vmin,11px)}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage">
+  <canvas id="c" width="420" height="680"></canvas>
+
+  <div class="panel on" id="titleP">
+    <h1>VOID//DRIFT</h1>
+    <div class="dim">A recovered build. Contents incomplete.</div>
+    <div class="rule"></div>
+    <div>Tap, click or press SPACE to hold altitude.</div>
+    <div class="dim">Pass the gaps. The log fills as you go.</div>
+    <div class="rule"></div>
+    <button id="startB">BEGIN</button>
+    <div class="tag" style="margin-top:1.2em">TINAQUERO CHARM · THE ARCA</div>
+  </div>
+
+  <div class="panel" id="deadP">
+    <div class="tag">RUN TERMINATED</div>
+    <h1 id="scoreH">00</h1>
+    <div class="dim" id="deadSub">Nothing was recovered.</div>
+    <div class="rule"></div>
+    <div id="fragList"></div>
+    <div class="rule"></div>
+    <div class="dim" id="capMsg">Leave a contact to receive the rest of the file.</div>
+    <div id="capForm">
+      <input id="capIn" type="text" inputmode="email" autocomplete="email" placeholder="email or phone">
+      <button id="capB">TRANSMIT</button>
+    </div>
+    <button id="againB" style="margin-top:.8em">RUN AGAIN</button>
+  </div>
+</div></div>
+
+<script>
+/* ------------------------------------------------------------------
+   VOID//DRIFT — Tinaquero Charm / The Arca
+   Single file. Canvas 2D. All audio synthesised at runtime.
+   Every run wipes: no accounts, no persistence, no store.
+   Set CAPTURE_ENDPOINT to your Cloudflare Worker + KV URL.
+------------------------------------------------------------------ */
+const CAPTURE_ENDPOINT = ""; // e.g. "https://capture.arca.workers.dev/void"
+
+/* ---------- audio: noise Foley only, never chiptune ---------- */
+let AC=null, bedGain=null, subOsc=null, subGain=null, noiseBuffer=null;
+function pinkBuffer(ctx,sec){
+  const n=Math.floor(ctx.sampleRate*sec), b=ctx.createBuffer(1,n,ctx.sampleRate), d=b.getChannelData(0);
+  let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+  for(let i=0;i<n;i++){
+    const w=Math.random()*2-1;
+    b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759; b2=0.96900*b2+w*0.1538520;
+    b3=0.86650*b3+w*0.3104856; b4=0.55000*b4+w*0.5329522; b5=-0.7616*b5-w*0.0168980;
+    d[i]=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11; b6=w*0.115926;
+  }
+  return b;
+}
+function initAudio(){
+  if(AC) { if(AC.state==="suspended") AC.resume(); return; }
+  AC=new (window.AudioContext||window.webkitAudioContext)();
+  noiseBuffer=pinkBuffer(AC,3);
+  // bed: filtered pink noise, room tone
+  const src=AC.createBufferSource(); src.buffer=noiseBuffer; src.loop=true;
+  const lp=AC.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=380; lp.Q.value=.4;
+  bedGain=AC.createGain(); bedGain.gain.value=0.028;
+  src.connect(lp).connect(bedGain).connect(AC.destination); src.start();
+  // 28Hz sub — pressure, not pitch. Rises with exposure.
+  subOsc=AC.createOscillator(); subOsc.type="sine"; subOsc.frequency.value=28;
+  subGain=AC.createGain(); subGain.gain.value=0.0;
+  subOsc.connect(subGain).connect(AC.destination); subOsc.start();
+}
+function noiseSrc(){ const s=AC.createBufferSource(); s.buffer=noiseBuffer; s.loop=true;
+  s.playbackRate.value=0.7+Math.random()*1.6; return s; }
+function thump(){ // drift input: low body thump + dry bandpassed scuff
+  if(!AC) return; const t=AC.currentTime;
+  const o=AC.createOscillator(); o.type="sine"; const g=AC.createGain();
+  o.frequency.setValueAtTime(74,t); o.frequency.exponentialRampToValueAtTime(34,t+.13);
+  g.gain.setValueAtTime(.22,t); g.gain.exponentialRampToValueAtTime(.001,t+.16);
+  o.connect(g).connect(AC.destination); o.start(t); o.stop(t+.18);
+  const s=noiseSrc(), bp=AC.createBiquadFilter(), ng=AC.createGain();
+  bp.type="bandpass"; bp.frequency.value=1700; bp.Q.value=1.1;
+  ng.gain.setValueAtTime(.10,t); ng.gain.exponentialRampToValueAtTime(.001,t+.07);
+  s.connect(bp).connect(ng).connect(AC.destination); s.start(t); s.stop(t+.09);
+}
+function pass(){ // gap cleared: dry click, almost nothing
+  if(!AC) return; const t=AC.currentTime;
+  const s=noiseSrc(), bp=AC.createBiquadFilter(), g=AC.createGain();
+  bp.type="bandpass"; bp.frequency.value=2600; bp.Q.value=3;
+  g.gain.setValueAtTime(.05,t); g.gain.exponentialRampToValueAtTime(.001,t+.05);
+  s.connect(bp).connect(g).connect(AC.destination); s.start(t); s.stop(t+.06);
+}
+function unlock(){ // recovered fragment: wet shutter + sub swell
+  if(!AC) return; const t=AC.currentTime;
+  for(let i=0;i<2;i++){
+    const s=noiseSrc(), bp=AC.createBiquadFilter(), g=AC.createGain();
+    bp.type="bandpass"; bp.frequency.value=3200-i*900; bp.Q.value=6;
+    g.gain.setValueAtTime(.14,t+i*.045); g.gain.exponentialRampToValueAtTime(.001,t+i*.045+.05);
+    s.connect(bp).connect(g).connect(AC.destination); s.start(t+i*.045); s.stop(t+i*.045+.06);
+  }
+  if(subGain){ const v=subGain.gain.value;
+    subGain.gain.cancelScheduledValues(t);
+    subGain.gain.setValueAtTime(v,t);
+    subGain.gain.linearRampToValueAtTime(Math.min(.16,v+.09),t+.5);
+    subGain.gain.linearRampToValueAtTime(v,t+2.6); }
+}
+function strike(){ // collision: sharp transient + resonant downward sweep
+  if(!AC) return; const t=AC.currentTime;
+  const s=noiseSrc(), lp=AC.createBiquadFilter(), g=AC.createGain();
+  lp.type="lowpass"; lp.frequency.setValueAtTime(5200,t); lp.frequency.exponentialRampToValueAtTime(220,t+.5);
+  g.gain.setValueAtTime(.30,t); g.gain.exponentialRampToValueAtTime(.001,t+.7);
+  s.connect(lp).connect(g).connect(AC.destination); s.start(t); s.stop(t+.75);
+  const o=AC.createOscillator(); o.type="sawtooth"; const og=AC.createGain(); const f=AC.createBiquadFilter();
+  f.type="lowpass"; f.frequency.value=700;
+  o.frequency.setValueAtTime(240,t); o.frequency.exponentialRampToValueAtTime(31,t+.55);
+  og.gain.setValueAtTime(.16,t); og.gain.exponentialRampToValueAtTime(.001,t+.6);
+  o.connect(f).connect(og).connect(AC.destination); o.start(t); o.stop(t+.62);
+}
+function setSub(v){ if(subGain) subGain.gain.setTargetAtTime(v,AC.currentTime,.6); }
+
+/* ---------- recovered fragments ---------- */
+const FRAGMENTS=[
+  {at:3,  t:"03:14 — the treeline is closer in the second photograph. nobody moved the camera."},
+  {at:7,  t:"the canopy stopped dripping all at once. every leaf. like a hand closing."},
+  {at:12, t:"he said the static got easier to read once he stopped trying to read it."},
+  {at:18, t:"we logged the gap as equipment failure. we logged it that way for six years."},
+  {at:25, t:"the heat here holds a shape. you can walk into one somebody left."},
+  {at:33, t:"she understood the pattern on the fourth night and did not sleep after."},
+  {at:42, t:"nothing followed us out. that is the part I keep returning to."},
+  {at:52, t:"this file was recovered from a device none of us owned."}
+];
+
+/* ---------- game ---------- */
+const c=document.getElementById("c"), x=c.getContext("2d");
+const W=c.width, H=c.height;
+const titleP=document.getElementById("titleP"), deadP=document.getElementById("deadP");
+
+let state="title", bird, cols, score, frames, got, shake, glitch, speed, lastUnlock;
+
+function reset(){
+  bird={y:H*0.42,v:0,r:9};
+  cols=[]; score=0; frames=0; got=[]; shake=0; glitch=0; speed=2.35; lastUnlock=-999;
+  for(let i=0;i<3;i++) cols.push(makeCol(W+120+i*190));
+  setSub(0.0);
+}
+function makeCol(px){
+  const gap=Math.max(118,168-score*1.1);
+  const top=60+Math.random()*(H-gap-180);
+  return {x:px,top:top,gap:gap,w:58,passed:false,seed:Math.random()*1000};
+}
+function flap(){
+  if(state==="play"){ bird.v=-6.6; thump(); }
+}
+function die(){
+  state="dead"; strike(); shake=22; setSub(0.0);
+  document.getElementById("scoreH").textContent=String(score).padStart(2,"0");
+  document.getElementById("deadSub").textContent =
+    got.length ? got.length+" of "+FRAGMENTS.length+" fragments recovered. The rest stayed where they were."
+               : "Nothing was recovered. You were only ever moving.";
+  const fl=document.getElementById("fragList"); fl.innerHTML="";
+  got.forEach(t=>{ const d=document.createElement("div"); d.className="frag"; d.textContent="› "+t; fl.appendChild(d); });
+  document.getElementById("capMsg").textContent = got.length
+    ? "Leave a contact. The unrecovered fragments are sent to the list, not to the game."
+    : "Leave a contact. The file is sent to the list, not to the game.";
+  document.getElementById("capForm").style.display="";
+  document.getElementById("capIn").value="";
+  deadP.classList.add("on");
+}
+
+/* ---------- loop ---------- */
+function step(){
+  requestAnimationFrame(step);
+  if(state==="play"){
+    frames++;
+    bird.v+=0.42; bird.y+=bird.v;
+    speed=2.35+score*0.035;
+    for(const col of cols){
+      col.x-=speed;
+      if(!col.passed && col.x+col.w<40){
+        col.passed=true; score++; pass();
+        setSub(Math.min(.085,score*0.0035));
+        glitch=Math.min(1,score/46);
+        const f=FRAGMENTS.find(f=>f.at===score);
+        if(f){ got.push(f.t); lastUnlock=frames; unlock(); }
+      }
+      // collision
+      if(40+bird.r>col.x && 40-bird.r<col.x+col.w){
+        if(bird.y-bird.r<col.top || bird.y+bird.r>col.top+col.gap) die();
+      }
+    }
+    if(cols[0].x<-80){ cols.shift(); cols.push(makeCol(cols[cols.length-1].x+180+Math.random()*40)); }
+    if(bird.y>H-6 || bird.y<-40) die();
+  }
+  draw();
+}
+
+function draw(){
+  const sh = shake>0 ? (Math.random()-.5)*shake : 0;
+  shake*=0.86;
+  x.save(); x.translate(sh,sh*0.6);
+  x.fillStyle="#050505"; x.fillRect(-20,-20,W+40,H+40);
+
+  // ground haze
+  const g=x.createLinearGradient(0,H*0.6,0,H);
+  g.addColorStop(0,"rgba(255,255,255,0)"); g.addColorStop(1,"rgba(120,120,110,0.07)");
+  x.fillStyle=g; x.fillRect(0,H*0.6,W,H*0.4);
+
+  // columns — drawn as absence, jittered edges
+  for(const col of cols){
+    x.fillStyle="#0c0c0b";
+    x.fillRect(col.x,0,col.w,col.top);
+    x.fillRect(col.x,col.top+col.gap,col.w,H-col.top-col.gap);
+    x.strokeStyle="rgba(190,190,180,0.22)"; x.lineWidth=1;
+    for(let i=0;i<2;i++){
+      const y0 = i? col.top+col.gap : col.top;
+      x.beginPath();
+      for(let px=0;px<=col.w;px+=6){
+        const j=(Math.sin((px+col.seed+frames*0.6)*0.35)*1.6)+(Math.random()-.5)*glitch*3;
+        px===0?x.moveTo(col.x+px,y0+j):x.lineTo(col.x+px,y0+j);
+      }
+      x.stroke();
+    }
+  }
+
+  // the drifter — a small hole, not a bird
+  if(state!=="title"){
+    x.save(); x.translate(40,bird.y); x.rotate(Math.max(-.5,Math.min(1.1,bird.v*0.06)));
+    x.fillStyle="#0b0b0a"; x.fillRect(-9,-7,18,14);
+    x.strokeStyle="rgba(225,225,215,0.75)"; x.lineWidth=1; x.strokeRect(-9,-7,18,14);
+    x.fillStyle="rgba(225,225,215,0.75)"; x.fillRect(2,-2,4,4);
+    x.restore();
+  }
+
+  // score
+  x.fillStyle="rgba(200,200,190,0.55)"; x.font="16px ui-monospace,monospace";
+  x.fillText(String(score).padStart(2,"0"),12,26);
+
+  // recovered fragment flash
+  if(frames-lastUnlock<190 && got.length){
+    const a=1-(frames-lastUnlock)/190;
+    x.fillStyle="rgba(0,0,0,0.55)"; x.fillRect(0,H*0.5-34,W,68);
+    x.fillStyle="rgba(230,230,220,"+(0.9*a).toFixed(2)+")"; x.font="11px ui-monospace,monospace";
+    wrap(got[got.length-1],16,H*0.5-12,W-32,15);
+  }
+
+  // corruption layer — grows with score
+  if(glitch>0.02){
+    for(let i=0;i<Math.floor(glitch*5);i++){
+      const sy=Math.random()*H, hh=2+Math.random()*14*glitch, off=(Math.random()-.5)*26*glitch;
+      const d=x.getImageData(0,sy,W,hh); x.putImageData(d,off,sy);
+    }
+    x.globalCompositeOperation="lighter";
+    x.fillStyle="rgba(60,0,0,"+(0.05*glitch).toFixed(3)+")"; x.fillRect(-2,0,W,H);
+    x.fillStyle="rgba(0,30,40,"+(0.05*glitch).toFixed(3)+")"; x.fillRect(2,0,W,H);
+    x.globalCompositeOperation="source-over";
+  }
+  // scanlines
+  x.fillStyle="rgba(0,0,0,0.20)";
+  for(let y=0;y<H;y+=3) x.fillRect(0,y,W,1);
+  x.restore();
+}
+function wrap(t,px,py,maxw,lh){
+  const words=t.split(" "); let line="", yy=py;
+  for(const w of words){
+    if(x.measureText(line+w+" ").width>maxw){ x.fillText(line,px,yy); line=w+" "; yy+=lh; }
+    else line+=w+" ";
+  }
+  x.fillText(line,px,yy);
+}
+
+/* ---------- input ---------- */
+function press(e){
+  if(e && e.type==="touchstart") e.preventDefault();
+  initAudio();
+  if(state==="play") flap();
+}
+window.addEventListener("keydown",e=>{ if(e.code==="Space"||e.code==="ArrowUp"){e.preventDefault();press(e);} });
+c.addEventListener("mousedown",press);
+c.addEventListener("touchstart",press,{passive:false});
+
+function begin(){
+  initAudio(); reset(); state="play";
+  titleP.classList.remove("on"); deadP.classList.remove("on");
+}
+document.getElementById("startB").addEventListener("click",begin);
+document.getElementById("againB").addEventListener("click",begin);
+
+/* ---------- capture ---------- */
+document.getElementById("capB").addEventListener("click",()=>{
+  const v=document.getElementById("capIn").value.trim();
+  if(!v){ document.getElementById("capMsg").textContent="The field is empty. Nothing was sent."; return; }
+  const payload={game:"void-drift",contact:v,score:score,recovered:got.length,ts:Date.now()};
+  if(CAPTURE_ENDPOINT){
+    fetch(CAPTURE_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload)}).catch(()=>{});
+  } else { console.log("[capture]",payload); }
+  document.getElementById("capForm").style.display="none";
+  document.getElementById("capMsg").textContent="Received. The rest of the file follows when it is ready.";
+});
+
+reset(); step();
+</script>
+</body>
+</html>
