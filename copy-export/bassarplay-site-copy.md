@@ -21,7 +21,7 @@ Conventions: `[tag]` = small uppercase label text. *Italic* = greyed-out / secon
 
 | Page | Title | Description |
 |---|---|---|
-| Home | BASSAR PLAY | Three free horror games. Dread is the currency, terror the common tongue. |
+| Home | BASSAR PLAY | The currency is dread. Free horror game arcade. |
 | VOID//DRIFT | VOID//DRIFT · BASSAR PLAY | A recovered build. Contents incomplete. |
 | RECOVERED RECORDS | RECOVERED RECORDS · BASSAR PLAY | You are walking a site nobody has walked since. |
 | TRANSCRIPT | TRANSCRIPT · BASSAR PLAY | A dead band. Something keeps tuning through it, the same way, at the same intervals. |

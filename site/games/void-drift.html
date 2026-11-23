@@ -92,6 +92,7 @@ const BASSAR_ENDPOINT = "https://bassar-capture.julioernestolv.workers.dev";    
 const BASSAR_SITE     = "";          // "https://bassarplay.com" — where share links point. Empty = this origin.
 const BASSAR_GAME     = "void-drift";    // "" on site pages
 const BASSAR_RETURN   = "You have run this build before — %N%. The log remembers what you recovered.";  // the in-world line shown to someone who has been here before
+const BASSAR_BUILD    = "20261123-0300-2c29adb";   // stamped by build.py (<UTC time>-<hash>): ties every error report to the deploy that shipped it
 
 const BASSAR = (() => {
   const store = k => { try { return window[k] } catch (e) { return null } };
@@ -106,6 +107,7 @@ const BASSAR = (() => {
   const fresh = !V || !V.vid;
   if (fresh) V = { vid: rand(16), code: rand(6), first: Date.now(), visits: 0, walks: {}, ref: "" };
   V.walks = V.walks || {};
+  V.found = V.found || {};   // { game: { endings: {id: ts}, beats: {id: ts} } } — what this visitor has found
 
   /* a visit is a new tab session, not a page load */
   let sid = rd(SS, "bassar_sid");
@@ -143,10 +145,12 @@ const BASSAR = (() => {
     if (!base()) { console.log("[bassar " + path + "]", body); return Promise.resolve({ ok: true, local: true }); }
     const url = base() + path, s = JSON.stringify(body);
     if (beacon && navigator.sendBeacon) {
-      try { navigator.sendBeacon(url, new Blob([s], { type: "application/json" })); return Promise.resolve({ ok: true }); } catch (e) {}
+      try { navigator.sendBeacon(url, new Blob([s], { type: "text/plain;charset=UTF-8" }));  /* text/plain is CORS-safelisted: no preflight, so the beacon survives the page closing. The worker parses the body as JSON regardless. */ return Promise.resolve({ ok: true }); } catch (e) {}
     }
     return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: s, keepalive: true }).then(r => r.ok ? r.json() : { ok: false }).catch(() => ({ ok: false }));
+      body: s, keepalive: true })
+      .then(r => { if (!r.ok) failedRequest(path, "http " + r.status); return r.ok ? r.json() : { ok: false }; })
+      .catch(() => { failedRequest(path, "network"); return { ok: false }; });
   }
 
   /* ---- playtime, measured rather than inferred ----
@@ -155,6 +159,101 @@ const BASSAR = (() => {
   const BEAT_MS = 30000, BEAT_CAP = 40;
   let runs = 0, ended = 0, opened = false, activeMs = 0, runStart = 0, beats = 0, timer = null;
   const dur = () => Math.round(activeMs + (runStart ? Date.now() - runStart : 0));
+
+  /* ---- events: batched, never one request per event ----
+     Queued in memory, flushed every EV_MS, at EV_MAX queued, when a run ends,
+     and on pagehide / tab-hidden via sendBeacon. At most EV_CAP per session
+     (the worker enforces the same cap). Games only: site pages have no game. */
+  const EV_MS = 10000, EV_MAX = 20, EV_CAP = 300;
+  let evq = [], evSent = 0, evTimer = null, runNo = 0, seenBeats = {};
+  function ev(name, props) {
+    if (!BASSAR_GAME || evSent + evq.length >= EV_CAP) return;
+    evq.push({ n: name, t: Date.now(), p: props || {} });
+    if (evq.length >= EV_MAX) flushEv(false);
+    else if (!evTimer) evTimer = setTimeout(() => flushEv(false), EV_MS);
+  }
+  function flushEv(beacon) {
+    if (evTimer) { clearTimeout(evTimer); evTimer = null; }
+    if (!evq.length) return;
+    const batch = evq; evq = []; evSent += batch.length;
+    post("/events", { events: batch }, beacon).then(r => {
+      // a network failure puts the batch back once; a deliberate refusal ({drop}) does not
+      if (r && r.ok === false && !r.drop && !beacon) { evq = batch.concat(evq).slice(0, EV_CAP); evSent -= batch.length; }
+    });
+  }
+  function found(kind, id) {
+    const g = V.found[BASSAR_GAME] = V.found[BASSAR_GAME] || { endings: {}, beats: {} };
+    if (!g[kind][id]) { g[kind][id] = Date.now(); save(); }
+  }
+  const cleanId = id => String(id == null ? "" : id).slice(0, 40);
+
+  /* =========================================================================
+     ERROR CAPTURE — "is it working?"            (events = "are they hooked?")
+     =========================================================================
+     Reports crashes and failures to POST /errors so a game that breaks on
+     someone's phone leaves a trace. Full write-up: v2-handoff/ERROR-LOGGING.md
+
+     WHAT IS CAPTURED (the `kind` column):
+       js_error           an uncaught exception            (window "error")
+       promise_rejection  an unhandled promise rejection   (window "unhandledrejection")
+       request_failed     /play or /record failed (network or non-2xx). The signup
+                          form saying "It did not take" used to be invisible.
+       slow_or_stalled    the first run of a session drew fewer than ER_MIN_FRAMES
+                          frames in ER_FRAMES_MS while the tab was visible
+       webgl_lost         a WebGL context was lost (the fog / posters on the site)
+
+     LIMITS, ON PURPOSE:
+       - ER_CAP reports per session, identical ones sent once (the worker enforces the cap too).
+       - Messages are trimmed and stripped of URL query strings here, and masked
+         for emails / long digit runs again in the worker. Never the contact field.
+       - The reporter must never be the thing that crashes: everything is in try/catch,
+         and failures of /events and /errors themselves are never reported (no loops).
+
+     KNOWN GAPS: a hard browser crash or a frozen main thread cannot report itself;
+     errors thrown before this file loads are invisible. Both need real-device testing. */
+  const ER_CAP = 5, ER_FRAMES_MS = 5000, ER_MIN_FRAMES = 10;
+  let erSent = 0, erSeen = {}, erWatched = false;
+
+  function reportErr(kind, message, source) {
+    try {
+      message = String(message == null ? "" : message).replace(/\?[^\s)'"]*/g, "").slice(0, 200);
+      source = String(source || "").replace(/\?[^\s:)]*/g, "").slice(-120);
+      const fp = kind + "|" + message + "|" + source;
+      if (erSent >= ER_CAP || erSeen[fp]) return;
+      erSeen[fp] = 1; erSent++;
+      post("/errors", { build: BASSAR_BUILD, errors: [{ k: kind, m: message, s: source }] });
+    } catch (e) { /* the reporter must never throw */ }
+  }
+  function failedRequest(path, why) {
+    // /events and /errors are excluded: a failing error log must not report itself
+    if (path === "/play" || path === "/record") reportErr("request_failed", path + " " + why, "");
+  }
+
+  addEventListener("error", e => {
+    if (e && e.message) reportErr("js_error", e.message, (e.filename || "") + ":" + (e.lineno || 0) + ":" + (e.colno || 0));
+  });
+  addEventListener("unhandledrejection", e => {
+    const r = e && e.reason;
+    reportErr("promise_rejection", r && r.message ? r.message : String(r), r && r.stack ? String(r.stack).split("\n")[1] : "");
+  });
+  // webglcontextlost does not bubble: listen in the capture phase on the document
+  document.addEventListener("webglcontextlost", () => reportErr("webgl_lost", "webgl context lost", ""), true);
+
+  /* liveness: count real animation frames for ER_FRAMES_MS after the first run starts.
+     Skipped (and retried next run) if the tab was hidden at any point, since hidden tabs stop drawing. */
+  function watchFrames() {
+    if (erWatched || !BASSAR_GAME) return;
+    erWatched = true;
+    let frames = 0, hidden = false, alive = true;
+    const loop = () => { frames++; if (document.hidden) hidden = true; if (alive) requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+    setTimeout(() => {
+      alive = false;
+      if (hidden || document.hidden) { erWatched = false; return; }
+      if (frames < ER_MIN_FRAMES) reportErr("slow_or_stalled", "frames=" + frames + " in " + (ER_FRAMES_MS / 1000) + "s", "");
+    }, ER_FRAMES_MS);
+  }
+  /* ===================== end ERROR CAPTURE ===================== */
   const hp = () => { const e = document.getElementById("hp"); return e ? e.value : ""; };
 
   function beat(beacon) { return post("/play", { runs, ended, dur_ms: dur() }, beacon); }
@@ -168,10 +267,15 @@ const BASSAR = (() => {
   function stopBeat() { if (timer) { clearInterval(timer); timer = null; } }
 
   addEventListener("pagehide", () => {
-    if (runStart) { activeMs += Date.now() - runStart; runStart = 0; }
+    if (runStart) {
+      activeMs += Date.now() - runStart; runStart = 0;
+      if (!ended) ev("run_end", { run: runNo, reason: "left", dur_ms: dur() });
+    }
+    flushEv(true);
     if (runs || BASSAR_GAME === "") beat(true);
   });
   document.addEventListener("visibilitychange", () => {
+    if (document.hidden) flushEv(true);   // mobile tabs often never fire pagehide
     // a backgrounded tab is not playtime
     if (document.hidden && runStart) { activeMs += Date.now() - runStart; runStart = 0; stopBeat(); }
     else if (!document.hidden && runs && !ended) { runStart = Date.now(); startBeat(); }
@@ -188,16 +292,42 @@ const BASSAR = (() => {
     /* a run started. First call is the play row; the rest are depth. */
     run() {
       runs++; ended = 0; runStart = Date.now(); startBeat();
+      runNo++; seenBeats = {}; ev("run_start", { run: runNo });
+      watchFrames();
       V.walks[BASSAR_GAME] = (V.walks[BASSAR_GAME] || 0) + 1; save();
       if (!opened) { opened = true; return post("/play", { runs, dur_ms: 0, first: 1 }); }
       return beat(false);
     },
 
     /* a run ended — they are looking at the capture form now */
-    ended() {
+    ended(endingId) {
       ended = 1;
       if (runStart) { activeMs += Date.now() - runStart; runStart = 0; }
+      const id = cleanId(endingId) || "unknown";
+      ev("ending_reached", { run: runNo, ending_id: id });
+      ev("run_end", { run: runNo, reason: "ending", dur_ms: dur() });
+      ev("form_shown", { surface: "game-end" });
+      found("endings", id);
+      flushEv(false);
       stopBeat(); return beat(false);
+    },
+
+    /* a beat was reached in the current run. hidden:true marks an optional beat
+       (found, not passed). Each beat counts once per run. */
+    beatReached(id, opts) {
+      id = cleanId(id);
+      if (!id || !runNo || seenBeats[id]) return;
+      seenBeats[id] = 1;
+      const p = { run: runNo, beat_id: id };
+      if (opts && opts.hidden) { p.hidden = true; found("beats", id); }
+      ev("beat_reached", p);
+    },
+
+    /* what this visitor has found in this game (per vid, kept in their browser):
+       { endings: {id: firstFoundMs}, beats: {id: firstFoundMs} } — hidden beats only in `beats`. */
+    endingsFound() {
+      const g = V.found[BASSAR_GAME] || { endings: {}, beats: {} };
+      return { endings: Object.assign({}, g.endings), beats: Object.assign({}, g.beats) };
     },
 
     /* a page view on the site. kind:"page" keeps it out of the play count. */
@@ -208,8 +338,11 @@ const BASSAR = (() => {
        they had actually done at the moment they decided to file. */
     record(f) {
       return post("/record", Object.assign(
-        { surface: "game-end", website: hp(), runs, ended, dur_ms: dur() }, f));
+        { surface: "game-end", website: hp(), runs, ended, dur_ms: dur() }, f))
+        .then(r => { if (r && r.ok !== false) { ev("form_filed", { surface: "game-end" }); flushEv(false); } return r; });
     },
+    /* the Contact page: a message to the house. Same identity and attribution as every other post. */
+    contact(f) { return post("/api/contact", Object.assign({ website: hp() }, f)); },
     sign(surface, game, f) { return post("/record", Object.assign({ surface, game, kind: "page", website: hp() }, f)); },
 
     /* the share link. Whoever walks in on it arrives marked as yours. */
@@ -361,7 +494,7 @@ function flap(){
 }
 function die(){
   bassarBindShare("void-drift");
-  state="dead"; strike(); shake=22; setSub(0.0); BASSAR.ended();
+  state="dead"; strike(); shake=22; setSub(0.0); BASSAR.ended("TERMINATED");
   document.getElementById("scoreH").textContent=String(score).padStart(2,"0");
   document.getElementById("deadSub").textContent =
     got.length ? got.length+" of "+FRAGMENTS.length+" fragments recovered. The rest stayed where they were."
