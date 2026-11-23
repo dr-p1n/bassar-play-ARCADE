@@ -24,6 +24,10 @@ export default {
       switch (url.pathname) {
         case "/play":       return cors(await handlePlay(req, env), origin, env);
         case "/record":     return cors(await handleRecord(req, env), origin, env);
+        case "/leaderboard": return cors(await handleLeaderboard(req, env, url), origin, env);
+        case "/api/contact": return cors(await handleContact(req, env), origin, env);
+        case "/events":     return cors(await handleEvents(req, env), origin, env);
+        case "/errors":     return cors(await handleErrors(req, env), origin, env);
         case "/stats":      return cors(await handleStats(req, env, url), origin, env);
         case "/tag":        return cors(await handleTag(req, env, url), origin, env);
         case "/export.csv": return await handleExport(req, env, url);
@@ -532,4 +536,258 @@ async function handleExport(req, env, url) {
       "Cache-Control": "no-store"
     }
   });
+}
+
+/* ---------- events ----------
+   A batch of behavioural events from the client. vid only: no contact, no IP
+   hash ever lands in this table. Fixed vocabulary, whitelisted props, and a
+   per-session budget, so the table can only grow from sessions that opened a
+   real play row first.                                                   */
+const EVENT_NAMES = new Set(["run_start", "beat_reached", "ending_reached", "run_end", "form_shown", "form_filed"]);
+const EVENT_BATCH_MAX = 50;       // events per request
+const EVENT_SESSION_CAP = 400;    // events per session, across all requests
+const ID_RE = /[^\w.:\-]/g;     // beat_id / ending_id: word chars, dot, colon, dash
+
+function cleanProps(p) {
+  const o = {};
+  if (!p || typeof p !== "object") return "{}";
+  if (p.run != null)        o.run = int(p.run, 1000);
+  if (p.dur_ms != null)     o.dur_ms = int(p.dur_ms, 24 * 3600 * 1000);
+  if (p.hidden === true)    o.hidden = true;
+  for (const k of ["beat_id", "ending_id", "reason", "surface"]) {
+    if (p[k] != null) o[k] = str(p[k], 40).replace(ID_RE, "_");
+  }
+  return JSON.stringify(o);
+}
+
+async function handleEvents(req, env) {
+  if (req.method !== "POST") return json({ ok: false, error: "method" }, 405);
+  let body; try { body = await req.json(); } catch (e) { return json({ ok: false, error: "json" }, 400); }
+
+  const session = str(body.session, 40), vid = str(body.vid, 40), game = str(body.game, 40);
+  const list = Array.isArray(body.events) ? body.events.slice(0, EVENT_BATCH_MAX) : [];
+  if (!session || !vid || !game || !list.length) return json({ ok: false, drop: true, error: "shape" }, 400);
+
+  // the play row must already exist, and belong to this visitor. /play is rate-limited
+  // per IP, so this is what stops events being written for sessions that were never opened.
+  const play = await env.DB.prepare("SELECT vid FROM plays WHERE id = ?").bind(session + ":" + game).first();
+  if (!play || play.vid !== vid) return json({ ok: false, drop: true, error: "no_session" });
+
+  const now = Date.now();
+  const rows = [];
+  for (const e of list) {
+    if (!e || !EVENT_NAMES.has(e.n)) continue;
+    const t = Number(e.t);
+    const ts = Number.isFinite(t) && t >= now - 86400000 && t <= now + 60000 ? Math.round(t) : now;
+    rows.push([ts, session, vid, game, e.n, cleanProps(e.p)]);
+  }
+  if (!rows.length) return json({ ok: true, n: 0 });
+
+  // atomic budget: the UPDATE only succeeds while the session is under its cap
+  const bud = await env.DB.prepare(
+    "UPDATE plays SET evn = COALESCE(evn,0) + ? WHERE id = ? AND COALESCE(evn,0) + ? <= ?"
+  ).bind(rows.length, session + ":" + game, rows.length, EVENT_SESSION_CAP).run();
+  if (!bud.meta || !bud.meta.changes) return json({ ok: false, drop: true, error: "cap" });
+
+  await env.DB.batch(rows.map(r =>
+    env.DB.prepare("INSERT INTO events(ts, session, vid, game, name, props) VALUES(?,?,?,?,?,?)").bind(...r)));
+  return json({ ok: true, n: rows.length });
+}
+
+
+/* =============================================================================
+   ERROR LOG  —  POST /errors      ("is it working?"; the behaviour log is /events)
+   =============================================================================
+   Receives crash/failure reports from the client (client/bassar-client.js,
+   section "ERROR CAPTURE") and stores them in the `errors` table (migration 0003).
+
+   RULES THIS HANDLER ENFORCES — change them deliberately, not by accident:
+     1. Fixed vocabulary of kinds (ERROR_KINDS). Anything else is ignored.
+     2. A play row must already exist for this session AND belong to this vid.
+        (/play is rate-limited per IP, so this stops error rows for sessions
+        that were never opened.)
+     3. At most ERROR_SESSION_CAP rows per session, enforced atomically with a
+        single UPDATE on plays.errn.
+     4. Messages are sanitised here too, not just in the client: URL query
+        strings removed, email-like strings -> [email], digit runs of 7+ ->
+        [digits], length-capped. An error message can quote what a player typed.
+     5. No contact details and no IP hash are ever written to `errors`.
+   Full write-up: v2-handoff/ERROR-LOGGING.md
+   ============================================================================= */
+const ERROR_KINDS = new Set(["js_error", "promise_rejection", "request_failed", "slow_or_stalled", "webgl_lost"]);
+const ERROR_BATCH_MAX = 5;        // errors per request
+const ERROR_SESSION_CAP = 5;      // errors per session, across all requests
+
+/* mask anything that could be personal, strip query strings, cap the length */
+function cleanErrText(v, max) {
+  return str(v, 400)
+    .replace(/\?[^\s)'"]*/g, "")                  // URL query strings
+    .replace(/[^\s@]+@[^\s@]+/g, "[email]")      // email-like
+    .replace(/\d[\d\s().+-]{5,}\d/g, "[digits]") // phone-like / long digit runs (7+ digits)
+    .slice(0, max);
+}
+
+async function handleErrors(req, env) {
+  if (req.method !== "POST") return json({ ok: false, error: "method" }, 405);
+  let body; try { body = await req.json(); } catch (e) { return json({ ok: false, error: "json" }, 400); }
+
+  const session = str(body.session, 40), vid = str(body.vid, 40);
+  const game = str(body.game, 40) || "site";            // site pages have no game slug
+  const build = str(body.build, 40).replace(/[^\w.:\-]/g, "_");
+  const list = Array.isArray(body.errors) ? body.errors.slice(0, ERROR_BATCH_MAX) : [];
+  if (!session || !vid || !list.length) return json({ ok: false, drop: true, error: "shape" }, 400);
+
+  // the session must exist and be this visitor's. Any of the session's play rows will do
+  // (a site page has a page:* row, a game has its own); idx_plays_vid keeps this lookup cheap.
+  const play = await env.DB.prepare("SELECT id FROM plays WHERE vid = ? AND session = ? ORDER BY ts ASC, id ASC LIMIT 1"   /* deterministic: the budget lives on the session's first play row */)
+    .bind(vid, session).first();
+  if (!play) return json({ ok: false, drop: true, error: "no_session" });
+
+  const device = /Mobi|Android|iPhone|iPad/i.test(req.headers.get("User-Agent") || "") ? "mobile" : "desktop";
+  const now = Date.now();
+  const rows = [];
+  for (const e of list) {
+    if (!e || !ERROR_KINDS.has(e.k)) continue;
+    const message = cleanErrText(e.m, 200), source = cleanErrText(e.s, 120);
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(e.k + "|" + message + "|" + source));
+    const fingerprint = [...new Uint8Array(digest)].slice(0, 6).map(b => b.toString(16).padStart(2, "0")).join("");
+    rows.push([now, game, session, vid, e.k, message, source, build, device, fingerprint]);
+  }
+  if (!rows.length) return json({ ok: true, n: 0 });
+
+  // atomic per-session budget (one UPDATE; succeeds only while under the cap)
+  const bud = await env.DB.prepare(
+    "UPDATE plays SET errn = COALESCE(errn,0) + ? WHERE id = ? AND COALESCE(errn,0) + ? <= ?"
+  ).bind(rows.length, play.id, rows.length, ERROR_SESSION_CAP).run();
+  if (!bud.meta || !bud.meta.changes) return json({ ok: false, drop: true, error: "cap" });
+
+  await env.DB.batch(rows.map(r => env.DB.prepare(
+    "INSERT INTO errors(ts, game, session, vid, kind, message, source, build, device, fingerprint) VALUES(?,?,?,?,?,?,?,?,?,?)"
+  ).bind(...r)));
+  return json({ ok: true, n: rows.length });
+}
+
+
+/* ---------- GET /leaderboard ----------
+   Names and scores only. Never contact details, never visitor ids. Public,
+   read-only, cached about a minute at the edge and in the browser.
+   One row per visitor per file (their best), top 20 per file. Rows come from
+   the score fields /record already stores in `detail`; nothing is computed
+   here that the games did not send.                                        */
+const BOARD_TOP = 20;
+const BOARD = {
+  "void-drift": {
+    where: "json_extract(detail,'$.recovered') IS NOT NULL",
+    order: "CAST(json_extract(detail,'$.recovered') AS INTEGER) DESC, CAST(json_extract(detail,'$.score') AS INTEGER) DESC",
+    pick: d => ({ recovered: int(d.recovered, 8), score: int(d.score) })
+  },
+  "recovered-records": {
+    where: "json_extract(detail,'$.resolved') IS NOT NULL",
+    order: "CAST(json_extract(detail,'$.resolved') AS INTEGER) DESC, CAST(json_extract(detail,'$.distance') AS INTEGER) DESC",
+    pick: d => ({ resolved: int(d.resolved, 99), distance: int(d.distance) })
+  },
+  "transcript": {
+    where: "json_extract(detail,'$.decoded') IS NOT NULL",
+    order: "CAST(json_extract(detail,'$.decoded') AS INTEGER) DESC, CAST(json_extract(detail,'$.match') AS INTEGER) DESC",
+    pick: d => ({ decoded: int(d.decoded, 999), match: int(d.match, 100) })
+  }
+};
+
+// a name field is for a name. If someone typed a contact into it, it is not shown.
+function publicName(raw) {
+  const n = str(raw, 18);
+  if (!n || /@|https?:|www\./i.test(n) || /\d[\d\s().+-]{5,}\d/.test(n)) return "anon";
+  return n;
+}
+
+async function handleLeaderboard(req, env, url) {
+  if (req.method !== "GET") return json({ ok: false }, 405);
+  const cache = caches.default;
+  const key = new Request(url.origin + "/leaderboard", { method: "GET" });
+  const hit = await cache.match(key);
+  if (hit) return hit;
+
+  const files = {};
+  for (const [game, cfg] of Object.entries(BOARD)) {
+    const rows = await env.DB.prepare(
+      `SELECT vid, id, name, detail FROM records
+        WHERE game = ? AND surface = 'game-end' AND ${cfg.where}
+        ORDER BY ${cfg.order}, ts ASC LIMIT 300`
+    ).bind(game).all();
+    const seen = new Set(), out = [];
+    for (const r of rows.results || []) {
+      const who = r.vid || r.id;                       // best row per visitor: rows arrive best-first
+      if (seen.has(who)) continue;
+      seen.add(who);
+      let d = {}; try { d = JSON.parse(r.detail || "{}"); } catch (_) {}
+      out.push(Object.assign({ name: publicName(r.name) }, cfg.pick(d)));
+      if (out.length >= BOARD_TOP) break;
+    }
+    files[game] = out;
+  }
+
+  const res = new Response(JSON.stringify({ ok: true, files }), {
+    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=60, s-maxage=60" }
+  });
+  await cache.put(key, res.clone());
+  return res;
+}
+
+
+/* ---------- POST /api/contact ----------
+   The Contact page. Stores the message; the contact detail lives only in the
+   `messages` table, same rule as `records`. No public route ever returns it.
+   Rate limit: per hashed IP, counted in the table itself.               */
+const AUDIENCES = new Set(["player", "developer", "press", "partners", "producers"]);
+const MSG_MAX = 2000;
+const MSG_RL_WINDOW_MS = 10 * 60 * 1000, MSG_RL_MAX = 3;
+
+async function handleContact(req, env) {
+  if (req.method !== "POST") return json({ ok: false }, 405);
+
+  // a message is at most 2,000 characters; the envelope around it is small. Refuse anything bigger before parsing.
+  const raw = await req.text();
+  if (raw.length > 6000) return json({ ok: false, error: "too long" }, 413);
+  let body = null; try { body = JSON.parse(raw); } catch (_) {}
+  if (!body || typeof body !== "object") return json({ ok: false, error: "bad body" }, 400);
+
+  // honeypot: a field no human ever fills. Answer as if it worked.
+  if (str(body.website, 50)) return json({ ok: true });
+
+  const audience = str(body.audience, 20);
+  const text = typeof body.message === "string" ? body.message.trim() : "";
+  const c = classifyContact(body.contact);
+  if (!AUDIENCES.has(audience) || !text || c.kind === "none") return json({ ok: false, error: "empty" }, 400);
+  if (text.length > MSG_MAX) return json({ ok: false, error: "too long" }, 413);
+
+  const hash = await ipHash(req, env);
+  const since = Date.now() - MSG_RL_WINDOW_MS;
+  const row = await env.DB.prepare(`SELECT COUNT(*) AS n FROM messages WHERE ip_hash = ? AND ts > ?`).bind(hash, since).first();
+  if (row && row.n >= MSG_RL_MAX) return json({ ok: false, error: "throttled" }, 429);
+
+  const m = meta(req, body);
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  await env.DB.prepare(
+    `INSERT INTO messages (id, ts, vid, audience, name, contact, body, source, medium, campaign, ip_hash, notified)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,0)`
+  ).bind(id, Date.now(), m.vid, audience, str(body.name, 80), c.value, text, m.source, m.medium, m.campaign, hash).run();
+
+  // Tell the owner. Never allowed to fail the request: the message is already safe in the table.
+  try {
+    if (await notifyContact(env, { id, audience, name: str(body.name, 80), contact: c.value, body: text })) {
+      await env.DB.prepare(`UPDATE messages SET notified = 1 WHERE id = ?`).bind(id).run();
+    }
+  } catch (err) { console.error("bassar contact notify", err && err.message); }
+
+  return json({ ok: true });
+}
+
+/* EMAIL NOTIFICATION — deliberately not wired yet (awaiting the owner's go-ahead on the send
+   method; see the proposal in the handoff). Returns true only when a mail was actually sent.
+   The recipient is the Worker secret CONTACT_TO: never in code, the repo or any page.
+   Until it is configured this is a no-op and every message stays `notified = 0`. */
+async function notifyContact(env, msg) {
+  if (!env.CONTACT_TO) return false;
+  console.log("bassar contact: CONTACT_TO is set but no sender is wired yet; message", msg.id, "left unsent");
+  return false;
 }

@@ -21,3 +21,34 @@ ALLOWED_ORIGINS = ""
 # Secrets, set with `npx wrangler secret put NAME` — never in this file:
 #   STATS_TOKEN  long random string; guards /stats and /export.csv
 #   IP_SALT      long random string; makes stored IP hashes unlinkable
+
+# ---------------------------------------------------------------------------
+# STAGING — same code, its own database, its own secrets, its own URL.
+# Top-level config above is PRODUCTION; `wrangler deploy` with no --env never
+# touches staging, and `--env staging` never touches production data.
+#
+#   npx wrangler d1 create bassar-capture-staging     # then paste the id below
+#   npx wrangler d1 execute bassar-capture-staging --env staging --remote --file=schema.sql
+#   npx wrangler secret put STATS_TOKEN --env staging  # different values from prod
+#   npx wrangler secret put IP_SALT     --env staging
+#   npx wrangler deploy --env staging
+#
+# Local (no Cloudflare slot needed):
+#   npx wrangler d1 execute bassar-capture-staging --env staging --local --file=schema.sql
+#   npx wrangler dev --env staging --local
+# ---------------------------------------------------------------------------
+[env.staging]
+name = "bassar-capture-staging"
+
+[env.staging.vars]
+ALLOWED_ORIGINS = ""
+
+[env.staging.observability]
+enabled = true
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "bassar-capture-staging"
+# PLACEHOLDER until the database exists on the account (D1 limit of 10 reached
+# 2026-11-22). Fine for --local; a remote deploy will fail until this is replaced.
+database_id = "00000000-0000-0000-0000-000000000000"

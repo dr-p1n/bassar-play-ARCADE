@@ -1,0 +1,11 @@
+// STAGING arcade: static assets only, no custom domain, no redirect worker.
+// Build first:   python3 build.py --staging
+// Deploy:        /opt/homebrew/bin/wrangler deploy --config wrangler.staging.jsonc
+// Publishes to https://bassar-staging.<account>.workers.dev — never to bassarplay.com.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bassar-staging",
+  "compatibility_date": "2026-09-11",
+  "workers_dev": true,
+  "assets": { "directory": ".staging/site" }
+}

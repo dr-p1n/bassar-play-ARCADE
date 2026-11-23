@@ -98,3 +98,64 @@ CREATE INDEX IF NOT EXISTS idx_records_source ON records(source);
 CREATE INDEX IF NOT EXISTS idx_records_vid    ON records(vid);
 CREATE INDEX IF NOT EXISTS idx_records_rung   ON records(rung);
 CREATE INDEX IF NOT EXISTS idx_records_iphash ON records(ip_hash, ts);
+
+-- ---- 0002_events (mirrors migrations/0002_events.sql) ----
+CREATE TABLE IF NOT EXISTS events (
+  id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts      INTEGER NOT NULL,           -- client time, clamped by the worker to [now-1d, now+60s]
+  session TEXT NOT NULL,
+  vid     TEXT NOT NULL,
+  game    TEXT NOT NULL,
+  name    TEXT NOT NULL,
+  props   TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_events_name_game_ts ON events(name, game, ts);
+
+-- daily_rollup: what survives the 90-day purge of events (see maintenance/rollup-and-purge.sql).
+CREATE TABLE IF NOT EXISTS daily_rollup (
+  day    TEXT NOT NULL,               -- YYYY-MM-DD (UTC), the day the run STARTED
+  game   TEXT NOT NULL,
+  metric TEXT NOT NULL,               -- run_starts | runs_ended | beat_reached | beat_lost
+  key    TEXT NOT NULL DEFAULT '',    -- beat_id for the beat_* metrics, else ''
+  n      INTEGER NOT NULL,
+  PRIMARY KEY (day, game, metric, key)
+);
+
+-- per-session event budget, enforced atomically by the worker (one UPDATE per batch).
+-- (plays.evn, the per-session event budget, is added by migrations/0002_events.sql;
+--  on a fresh install run that migration after this file.)
+
+-- ---- 0003_errors (mirrors migrations/0003_errors.sql) ----
+CREATE TABLE IF NOT EXISTS errors (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts          INTEGER NOT NULL,            -- server time, ms
+  game        TEXT NOT NULL,               -- a game slug, or 'site' for the landing/game-shell pages
+  session     TEXT NOT NULL,
+  vid         TEXT NOT NULL,               -- visitor id only
+  kind        TEXT NOT NULL,               -- js_error | promise_rejection | request_failed | slow_or_stalled | webgl_lost
+  message     TEXT NOT NULL DEFAULT '',    -- sanitised, max 200 chars, no URL query strings
+  source      TEXT NOT NULL DEFAULT '',    -- file:line:col (query stripped), max 120 chars
+  build       TEXT NOT NULL DEFAULT '',    -- stamped by build.py: ties the error to a deploy
+  device      TEXT NOT NULL DEFAULT '',    -- mobile | desktop
+  fingerprint TEXT NOT NULL                -- hash of kind+message+source: groups the same crash across players
+);
+
+-- per-session error budget (max 5), enforced atomically by the worker, same pattern as plays.evn
+-- (plays.errn is added by migrations/0003_errors.sql — run it after this file on a fresh install.)
+
+-- ---- 0004_messages (mirrors migrations/0004_messages.sql) ----
+CREATE TABLE IF NOT EXISTS messages (
+  id        TEXT PRIMARY KEY,
+  ts        INTEGER NOT NULL,            -- server time, ms
+  vid       TEXT DEFAULT '',             -- → visitors.vid, if they came through the site
+  audience  TEXT NOT NULL,               -- player | developer | press | partners | producers
+  name      TEXT DEFAULT '',             -- optional, as typed
+  contact   TEXT NOT NULL,               -- email or phone, as typed
+  body      TEXT NOT NULL,               -- max 2000 chars
+  source    TEXT DEFAULT '',
+  medium    TEXT DEFAULT '',
+  campaign  TEXT DEFAULT '',
+  ip_hash   TEXT,
+  notified  INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_messages_iphash ON messages(ip_hash, ts);
