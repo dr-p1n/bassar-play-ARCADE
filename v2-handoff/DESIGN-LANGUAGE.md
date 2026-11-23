@@ -45,12 +45,13 @@ Fog ramp (dithered, 4 steps): near-black purple → deep violet → violet → o
 
 ## The wordmark
 
-Pixel **BASSAR** plus a solid mint **PLAY** block with the letters knocked out, set on the wordmark's baseline. It is one SVG on a 20px module with a 3×5 pixel font for the P-L-A-Y glyphs. Never separate them, never recolour the block, never set PLAY in a typeface. The `03:14` stamp (blinking mint colon) sits top-right; it comes from the VOID//DRIFT fragment "03:14 — the treeline is closer in the second photograph."
+Pixel **BASSAR** plus a solid mint **PLAY** plate with the letters knocked out in black (ink). **Revised in v2:** the plate is the same height as the wordmark's lowercase body (top of the `a` to the baseline), not a small tag, and PLAY is set in a 5x7 arcade bitmap face (gamer-culture, not the old 3x5). It is one SVG drawn as rects, so there is still no typeface at runtime. Regenerate with `python3 brand/make-playblock.py` (rewrites the lockup in `site/index.html`; CSS width is scaled in `landing.css` so BASSAR stays the same size). Never separate them, never recolour the plate.
 
 ## Layout
 
+- The headline has **no mask and no box**. The pixel fog flows straight through it; it is only eased down ~40% by a very wide (~420px), soft swell (`uSoft` in `field.js`) so there is no edge to see. The fog itself was approved as-is ("the pixelated smoke / lava-lamp feel was perfect"): don't dim it further. Other text blocks still use the old rectangular mask.
 - Left-aligned, asymmetric. One idea per screen.
-- Landing: hero (wordmark, `03:14`, one line of lore, the headline bottom-left) → intro paragraph → **three posters, level, name only** → "Add yourself to it." with the form. No blurbs, numbering, or captions on the cards.
+- Landing: hero (the wordmark top-left, the headline **centred in the middle of the hero**, v2; **no `03:14` stamp and no lore line, both removed in v2**) → intro paragraph → **three posters, level, name only** → "Add yourself to it." with the form. No blurbs, numbering, or captions on the cards.
 - Posters are 2:3 (crop to 4:3 on phones). They are canvases, not images.
 - Game pages: back link + file label, the game in its black frame, one-line instruction, "the file" copy, the access form, the other two files. Same fog, calmer and darker.
 - Forms: underline inputs only, mint outline button that fills on hover, sentence-case labels.
@@ -59,8 +60,9 @@ Pixel **BASSAR** plus a solid mint **PLAY** block with the letters knocked out, 
 ## Motion
 
 - **Headlines** decode left-to-right out of the TRANSCRIPT glyph key (mint, dim), then at random: a few letters scramble or drop out, a mint/purple split, or the whole line phases out. A glitching letter keeps its measured width, so lines never reflow.
-- **Fog** flows slowly (domain-warped noise). Every 10–25s an **apparition** appears and is re-rolled each time: a slit of light, an aperture (concentric rings and blades), or a monolith outline. They choose open space, never under content. Occasionally a band of rows tears sideways for a split second.
+- **Fog** flows slowly (domain-warped noise). **No apparitions** (the slit / aperture / monolith) — removed in v2: the owner likes the pixelated, abstract, cosmic-horror smoke on its own, so nothing draws over it. Occasionally a band of rows tears sideways for a split second.
 - **Posters** are generators: an endless run of torn columns with the drifter threading each gap; a corridor whose walls disagree about where it ends, with a figure slowly approaching; rings of irregular marks where any mark crossing the line is struck and the centre answers.
+- **The PLAY plate is haunted** (`site/plate.js`): a few specks of static flicker on its half-module grid at all times; every 4-12s a poltergeist burst tears rows of the letters sideways, slips a violet ghost out from behind the plate, drops a letter, and inverts the plate for a frame. It stutters bad/clean/bad, then settles. Rolled per visit, never keyed. BASSAR itself never moves.
 - Reduced motion: one still frame, no glitch, no flow.
 - Ease slowly. No bounce, no spring, no staggered fade-up reveals.
 
@@ -70,6 +72,7 @@ Quiet, specific, in-world. The site speaks as the archive: "files", "the record"
 
 ## Don'ts
 
+- **Nothing follows the cursor.** The fog's pointer light was removed in v2 as a gimmick. No cursor-tracking, no cursor-triggered effects on the wordmark.
 - No gore, no jump scares on the site, no autoplay audio, and no sound button (removed on purpose).
 - No boxes or panels laid over the fog to rescue legibility — the fog yields instead.
 - No second pixel treatment, no new accent colour, no warm greys.
@@ -82,7 +85,7 @@ Quiet, specific, in-world. The site speaks as the archive: "files", "the record"
 |---|---|
 | `site/index.html` | landing |
 | `site/{void-drift,recovered-records,transcript}/index.html` | game wrapper pages |
-| `site/field.js` | shared fog (WebGL), apparitions, layout-aware masking |
+| `site/field.js` | shared fog (WebGL), layout-aware masking |
 | `site/landing.js` | headline glitch + the three poster generators |
 | `site/landing.css`, `site/bassar.css` | landing / game-page styles |
 | `site/games/*.html` | the games themselves (untouched) |
@@ -91,7 +94,6 @@ Quiet, specific, in-world. The site speaks as the archive: "files", "the record"
 | `worker/` | the capture API (separate Worker, D1) |
 
 Deploy: `python3 build.py && /opt/homebrew/bin/wrangler deploy` (the local `npx wrangler` is broken — wrong-architecture `workerd`). Cloudflare login must be the julioernestolv account.
-Check pins: `?form=0|1|2` fixes an apparition; `?event=1` forces one.
 
 ## State at handoff
 
@@ -109,6 +111,6 @@ Check pins: `?form=0|1|2` fixes an apparition; `?event=1` forces one.
 | `02-landing-full-desktop.png` | whole landing, desktop |
 | `03-landing-full-mobile.png` | whole landing, 500px |
 | `04-hero-decoding.png` | headline mid-decode |
-| `05`–`07` | the three apparitions: slit, aperture, monolith |
+| `05`–`07` | (historical) the three apparitions, since removed |
 | `08`–`10` | the three game pages, desktop |
 | `11`–`12` | game pages on mobile |

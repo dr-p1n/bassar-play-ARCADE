@@ -1,7 +1,6 @@
 /* BASSAR field — the fog behind every page.
    Generated, not drawn: each visit rolls its own noise seed and tint, and the
-   "apparitions" (a slit of light, an aperture, a monolith) are parameterised
-   and re-rolled every time they appear. Rendered small and scaled up so the
+   dithered smoke flows on its own. Rendered small and scaled up so the
    pixels stay hard. Shared by the landing and the three game pages. */
 (function () {
   "use strict";
@@ -25,9 +24,9 @@
     var VS = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
     var FS = [
       "precision highp float;",
-      "uniform vec2 uRes,uMouse,uSeed,uPos,uView;",
-      "uniform vec4 uRects[20]; uniform float uRectN;",
-      "uniform float uT,uScroll,uEvent,uTear,uForm,uScl,uRot,uAux,uHue,uDim;",
+      "uniform vec2 uRes,uSeed,uView;",
+      "uniform vec4 uRects[20], uSoft; uniform float uRectN;",
+      "uniform float uT,uScroll,uTear,uHue,uDim;",
       "float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}",
       "float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);",
       " return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}",
@@ -49,40 +48,15 @@
       " float vig=1.-smoothstep(.2,.9,length((uv-.5)*vec2(1.,1.2)));",
       " L*=mix(.1,1.,vig); L*=mix(.3,1.,smoothstep(.08,.55,uv.y)); L*=uDim;",
       " float away=smoothstep(.0,.8,uScroll); L*=mix(1.,.2,away);",
-      /* the pointer is a weak light */
-      " float Lm=0.; float dm=length((uv-uMouse)*vec2(asp,1.)); Lm+=.16*exp(-dm*dm*48.)*(1.-away*.6);",
-      /* the apparition: one of three generated forms, re-rolled each time */
-      " float sc=uScl*(.8+.2*smoothstep(0.,1.,uEvent));",
-      " vec2 ap=(uv-uPos)*vec2(asp,1.); float app=0.;",
-      " if(uForm<.5){",
-      "  float w=.0035+.004*noise(vec2(uv.y*22.,uT*.3));",
-      "  float xx=abs(ap.x+.012*(f-.5)); float yy=abs(ap.y);",
-      "  float slit=(1.-smoothstep(w,w*2.4,xx))*(1.-smoothstep(.2*sc,.3*sc,yy));",
-      "  float halo=exp(-pow(xx*7.,2.))*(1.-smoothstep(.2*sc,.38*sc,yy));",
-      "  app=slit*1.3+halo*.3;",
-      " } else if(uForm<1.5){",
-      "  float R=.2*sc; float rr_=length(ap); float a=atan(ap.y,ap.x)+uRot;",
-      "  float rings=0.;",
-      "  for(int i=1;i<5;i++){float rad=R*float(i)/4.; rings+=1.-smoothstep(.0014,.0042,abs(rr_-rad+.004*(f-.5)));}",
-      "  float sd=abs(fract(a*uAux/6.2831853+.5)-.5)*6.2831853/uAux*rr_;",
-      "  float spokes=(1.-smoothstep(.0012,.0034,sd))*step(R*.3,rr_)*step(rr_,R);",
-      "  float pupil=1.-smoothstep(R*.07,R*.12,rr_);",
-      "  float halo=exp(-rr_*rr_*60./(sc*sc))*.2;",
-      "  app=(rings*.8+spokes*.6+pupil*1.4)*(1.-smoothstep(R*1.02,R*1.15,rr_))+halo;",
-      " } else {",
-      "  float cs=cos(uRot*.08),sn=sin(uRot*.08); vec2 qq=mat2(cs,-sn,sn,cs)*ap;",
-      "  vec2 hs=vec2(.05,.16)*sc; float rad=.03*sc;",
-      "  vec2 d=abs(qq)-hs+rad; float sdf=length(max(d,0.))+min(max(d.x,d.y),0.)-rad;",
-      "  float edge=1.-smoothstep(.0012,.0034,abs(sdf));",
-      "  float inside=(1.-smoothstep(-.002,.0,sdf))*(.1+.12*noise(qq*40.+uT));",
-      "  float pt=1.-smoothstep(.004,.009,length(qq-vec2(0.,hs.y*1.35)));",
-      "  app=edge*1.1+inside+pt*1.2;",
-      " }",
-      " Lm+=uEvent*app;",
+      " float Lm=0.;",
       " vec2 cp=vec2(fc.x/uRes.x*uView.x,(1.-fc.y/uRes.y)*uView.y); float mask=0.;",
       " for(int i=0;i<20;i++){ if(float(i)>=uRectN) break; vec4 rc=uRects[i]; vec2 cc=(rc.xy+rc.zw)*.5, hh_=(rc.zw-rc.xy)*.5;",
       "  mask=max(mask,1.-smoothstep(0.,64.,length(max(abs(cp-cc)-hh_,0.)))); }",
       " L*=mix(1.,.07,mask); Lm*=1.-mask;",
+      /* the headline: the fog keeps flowing right through it, only eased down a little by a very wide, soft swell (no edge, no box) */
+      " vec2 zc=(uSoft.xy+uSoft.zw)*.5, zh=(uSoft.zw-uSoft.xy)*.5;",
+      " float zone=uSoft.z>uSoft.x?1.-smoothstep(0.,420.,length(max(abs(cp-zc)-zh,0.))):0.;",
+      " L*=1.-zone*.42; Lm*=1.-zone;",
       " float dth=b8(st);",
       " float vp=floor(clamp(L,0.,1.)*4.+dth)/4.;",
       " float vm=floor(clamp(Lm,0.,1.)*3.+dth)/3.;",
@@ -103,28 +77,11 @@
 
   /* what this visit's room looks like */
   var look = { seed: [rnd(0, 80), rnd(0, 80)], hue: Math.random(), t0: rnd(0, 400) };
-  var ap = { form: 0, pos: [.72, .5], scl: 1, rot: 0, aux: 8 };
-  function reroll() {
-    ap.form = Math.random() * 3 | 0;
-    ap.scl = rnd(.75, 1.3);
-    // roll a spot in the open: never under text, posters or the game frame
-    collect();
-    for (var tries = 0; tries < 24; tries++) {
-      var px = rnd(.1, .92), py = rnd(.38, .8), X = px * innerWidth, Y = (1 - py) * innerHeight, clear = true;
-      for (var k = 0; k < rectN; k++) {
-        if (X > rectArr[k * 4] - 90 && X < rectArr[k * 4 + 2] + 90 && Y > rectArr[k * 4 + 1] - 90 && Y < rectArr[k * 4 + 3] + 90) { clear = false; break; }
-      }
-      ap.pos = [px, py]; if (clear) break;
-    }
-    ap.rot = rnd(0, 6.2832);
-    ap.aux = 6 + (Math.random() * 7 | 0);
-  }
-  var q = location.search.match(/[?&]form=(\d)/);
 
   /* the content is the subject: the fog reads the layout and gives way to it */
-  var TEXT_SEL = ".lede, .intro, .hero-note, .record h2, .record .sub";
-  var ELEM_SEL = ".hero-top h1, .stamp, .file a, .record form, .bar, .stage, .wrap > .tag, .wrap .wrap";
-  var rectArr = new Float32Array(80), rectN = 0, range = document.createRange();
+  var TEXT_SEL = ".intro, .record h2, .record .sub";
+  var ELEM_SEL = ".hero-top h1, .file a, .record form, .bar, .stage, .wrap > .tag, .wrap .wrap";
+  var rectArr = new Float32Array(80), softArr = new Float32Array(4), rectN = 0, range = document.createRange();
   function collect() {
     var n = 0, i, els, r;
     function add(r) {
@@ -135,15 +92,17 @@
     els = document.querySelectorAll(TEXT_SEL);
     for (i = 0; i < els.length; i++) { range.selectNodeContents(els[i]); add(range.getBoundingClientRect()); }   // tight to the words, not the column
     rectN = n;
+    var lede = document.querySelector(".lede"); softArr.fill(0);
+    if (lede) { range.selectNodeContents(lede); var z = range.getBoundingClientRect(); if (z.width > 4) { softArr[0] = z.left - 30; softArr[1] = z.top - 30; softArr[2] = z.right + 30; softArr[3] = z.bottom + 30; } }
   }
 
-  var U = {}, mouse = { x: -2, y: -2, tx: -2, ty: -2 }, ev = 0, tear = 0, lastW = 0, lastH = 0;
+  var U = {}, tear = 0, lastW = 0, lastH = 0;
   if (gl) {
     gl.useProgram(prog);
     var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     var loc = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    ["uRes", "uMouse", "uSeed", "uPos", "uView", "uRects", "uRectN", "uT", "uScroll", "uEvent", "uTear", "uForm", "uScl", "uRot", "uAux", "uHue", "uDim"]
+    ["uRes", "uSeed", "uView", "uRects", "uSoft", "uRectN", "uT", "uScroll", "uTear", "uHue", "uDim"]
       .forEach(function (n) { U[n] = gl.getUniformLocation(prog, n); });
   } else if (cv) {
     document.documentElement.classList.add("nogl");
@@ -159,43 +118,20 @@
   function draw(now) {
     if (!gl) return;
     var t = (reduce ? frozenT : (now - T0) / 1000) + look.t0;
-    if (mouse.x < -1 && mouse.tx > -1) { mouse.x = mouse.tx; mouse.y = mouse.ty; }
-    mouse.x += (mouse.tx - mouse.x) * .05; mouse.y += (mouse.ty - mouse.y) * .05;
     gl.uniform2f(U.uRes, cv.width, cv.height);
-    gl.uniform2f(U.uMouse, mouse.x, mouse.y);
     collect();
-    gl.uniform2f(U.uView, innerWidth, innerHeight); gl.uniform4fv(U.uRects, rectArr); gl.uniform1f(U.uRectN, rectN);
+    gl.uniform2f(U.uView, innerWidth, innerHeight); gl.uniform4fv(U.uRects, rectArr); gl.uniform4fv(U.uSoft, softArr); gl.uniform1f(U.uRectN, rectN);
     gl.uniform2f(U.uSeed, look.seed[0], look.seed[1]);
-    gl.uniform2f(U.uPos, ap.pos[0], ap.pos[1]);
     gl.uniform1f(U.uT, t);
     gl.uniform1f(U.uScroll, Math.min(3, (window.scrollY || 0) / innerHeight));
-    gl.uniform1f(U.uEvent, reduce ? 0 : ev);
     gl.uniform1f(U.uTear, reduce ? 0 : tear);
-    gl.uniform1f(U.uForm, ap.form); gl.uniform1f(U.uScl, ap.scl); gl.uniform1f(U.uRot, ap.rot);
-    gl.uniform1f(U.uAux, ap.aux); gl.uniform1f(U.uHue, look.hue); gl.uniform1f(U.uDim, calm ? .6 : 1);
+    gl.uniform1f(U.uHue, look.hue); gl.uniform1f(U.uDim, calm ? .6 : 1);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
-  addEventListener("pointermove", function (e) { mouse.tx = e.clientX / innerWidth; mouse.ty = 1 - e.clientY / innerHeight; }, { passive: true });
   var rt = null;
   addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { sizeField(false); draw(performance.now()); }, 140); });
   sizeField(true);
 
-  /* an apparition: stutters in, holds, fades. Each one is a new roll. */
-  async function appear() {
-    reroll();
-    var seq = [1, 0, 1, 0, 1];
-    for (var i = 0; i < seq.length; i++) { ev = seq[i]; await sleep(55 + Math.random() * 60); }
-    ev = 1; await sleep(1700 + Math.random() * 1700);
-    for (var k = 10; k >= 0; k--) { ev = k / 10; await sleep(70); }
-    ev = 0;
-  }
-  async function events() {
-    await sleep(calm ? 9000 : 5200 + Math.random() * 3000);
-    for (;;) {
-      if (!document.hidden && (calm || (window.scrollY || 0) < innerHeight * .6)) await appear();
-      await sleep((calm ? 22000 : 11000) + Math.random() * (calm ? 22000 : 14000));
-    }
-  }
   async function tears() {
     for (;;) {
       await sleep(7000 + Math.random() * 12000);
@@ -209,9 +145,7 @@
     last = now; draw(now);
   }
   if (gl) {
-    if (q) { ap.form = +q[1]; ev = 1; }                       // ?form=0|1|2 pins an apparition (for checking)
-    else if (/[?&]event=1/.test(location.search)) { reroll(); ev = 1; }
     if (reduce) { draw(0); addEventListener("scroll", function () { draw(0); }, { passive: true }); }
-    else { requestAnimationFrame(frame); events(); tears(); }
+    else { requestAnimationFrame(frame); tears(); }
   }
 })();

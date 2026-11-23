@@ -71,3 +71,9 @@ button:disabled{opacity:.5;cursor:default}
 footer{margin-top:clamp(40px,7vw,72px);color:var(--soot);letter-spacing:.3em;font-size:12px}
 
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* --- site nav: FILES · THE RECORD · CONTACT. Grey; mint marks the current page. --- */
+.sitenav{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:6px clamp(14px,3vw,28px)}
+.sitenav a{color:var(--ash);text-decoration:none;letter-spacing:.14em;font-size:clamp(11px,1.4vw,12px);text-transform:uppercase;transition:color .25s;text-shadow:0 0 10px #05020a}
+.sitenav a:hover,.sitenav a[aria-current="page"]{color:var(--mint)}
+.sitenav + .bar{margin-top:clamp(14px,2.4vw,22px)}
