@@ -1,35 +1,39 @@
-# Contact page: how the owner gets notified (PROPOSAL, nothing set up)
+# Contact page: how the owner gets notified (DECIDED: Resend, 2026-11-22)
 
-State today: `POST /api/contact` stores every message in the `messages` table (`notified = 0`).
-`notifyContact()` in `worker/src/index.js` is a deliberate no-op until this is approved. The
-recipient will be the Worker **secret** `CONTACT_TO`, never in code, the repo or any page.
+Decision: **Resend** (free tier), not Cloudflare Email Service, so no Workers Paid plan is needed.
+`notifyContact()` in `worker/src/index.js` now calls the Resend API. It is **dormant until three
+things exist**; any missing one leaves the message stored with `notified = 0` (the backlog).
 
-## Recommended: Cloudflare Email Service, `send_email` binding
-Sent straight from the Worker. No API key, no third party. Source: Cloudflare docs
-(email-service: Workers API, limits, pricing), read 2026-11-22. Re-check before building;
-the product is new and moving.
+## What the owner does
+1. Create a Resend account (free). Check the current free limits on resend.com/pricing.
+2. In Resend, add the domain `bassarplay.com` (a sending subdomain such as `send.bassarplay.com`
+   is fine). Resend shows DNS records (SPF, DKIM, a return-path MX).
+3. Add those records in the Cloudflare DNS dashboard (or ask me to, with your go-ahead; DNS is
+   outward-facing). Do this in the same sitting as the open DNS job: SPF and DMARC for the root
+   domain, and a null MX if the domain receives no mail. Resend's records live on their own
+   subdomain, so they don't clash with the root; check there is only ONE SPF record per name.
+4. Create a Resend API key with **sending access only**.
+5. Type the secrets yourself so I never see them (staging first, then production):
+   `wrangler secret put RESEND_API_KEY --config wrangler.toml [--env staging]`
+   `wrangler secret put CONTACT_TO      --config wrangler.toml [--env staging]`
+6. Pick the sender and set the var `CONTACT_FROM` in `worker/wrangler.toml`, e.g.
+   `BASSAR PLAY <contact@bassarplay.com>` (the address needn't be a real mailbox; its domain must
+   be the verified one).
 
-What it needs from the owner:
-1. **Workers Paid plan** (docs list it as required for outbound sending). 3,000 emails a month
-   are included, then $0.35 per 1,000. Sends to verified destination addresses don't count.
-2. **Onboard `bassarplay.com` for Email Sending** (Dashboard > Email Service > Email Sending >
-   Onboard Domain). Cloudflare adds SPF/DKIM/MX records on a `cf-bounce.` subdomain, and a
-   `_dmarc` record **only if none exists** (default policy `p=reject`). Root MX is unchanged
-   (it changes only if Email Routing is turned on). This overlaps the open DNS job (null MX /
-   SPF / DMARC): do both in one sitting.
-3. **A sender address** on the domain, e.g. `contact@bassarplay.com` (a name only; it needn't
-   be a real mailbox).
-4. **The recipient**, typed by the owner into `wrangler secret put CONTACT_TO` (staging first,
-   then production). I never see it.
-5. Approval for me to add `[[send_email]]` to `worker/wrangler.toml`, fill in `notifyContact()`,
-   and send one test message to staging.
+## What it sends
+Plain text, one email per message, to `CONTACT_TO`. Subject `[BASSAR] message from <audience>`
+(audience comes from a fixed list, so nothing a visitor typed reaches the subject). Body has
+audience, name, contact, the message, the id. `reply_to` is set to the sender when they gave an
+email, so Reply answers them. Failure never fails the request: the row is already in D1.
 
-Then: messages with `notified = 0` are the backlog; a one-off send marks them 1.
-
-## Alternative: an email provider (Resend, Postmark, ...)
-Also fine, but more moving parts: an account, an API key stored as a secret, the provider's own
-DNS records, and a third party reading every message. Pick only if Workers Paid is unwanted.
-
-## Until one is chosen
-Messages are safe in D1 but nobody is told. Read them with:
+## Backlog
+Messages sent before this is live stay `notified = 0`. A one-off send for those is a separate
+step (ask first). Read them any time with:
 `wrangler d1 execute bassar-capture --config wrangler.toml --remote --command "select ts,audience,name,contact,body from messages order by ts desc"`
+
+## Privacy
+Resend becomes a processor of the message text and the sender's contact. Mention it in the one-line
+"how this is used" note under the Contact form before this goes live.
+
+## Not yet done
+Nothing deployed. Code tested with a stubbed `fetch` only; no real email has been sent.

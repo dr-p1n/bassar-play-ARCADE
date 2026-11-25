@@ -21,6 +21,10 @@ ALLOWED_ORIGINS = ""
 # Secrets, set with `npx wrangler secret put NAME` — never in this file:
 #   STATS_TOKEN  long random string; guards /stats and /export.csv
 #   IP_SALT      long random string; makes stored IP hashes unlinkable
+#   RESEND_API_KEY  Resend API key (sending access only); Contact page email
+#   CONTACT_TO      where Contact messages are emailed; never in code or the repo
+# Plus one plain var, CONTACT_FROM, set below once the sending domain is verified in Resend.
+# Until all three exist, messages are only stored (notified = 0), as today.
 
 # ---------------------------------------------------------------------------
 # STAGING — same code, its own database, its own secrets, its own URL.

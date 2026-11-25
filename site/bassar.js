@@ -18,7 +18,7 @@ const BASSAR_ENDPOINT = "https://bassar-capture.julioernestolv.workers.dev";    
 const BASSAR_SITE     = "";          // "https://bassarplay.com" — where share links point. Empty = this origin.
 const BASSAR_GAME     = "";    // "" on site pages
 const BASSAR_RETURN   = "";  // the in-world line shown to someone who has been here before
-const BASSAR_BUILD    = "20261123-0300-2c29adb";   // stamped by build.py (<UTC time>-<hash>): ties every error report to the deploy that shipped it
+const BASSAR_BUILD    = "20261125-1839-2c29adb";   // stamped by build.py (<UTC time>-<hash>): ties every error report to the deploy that shipped it
 
 const BASSAR = (() => {
   const store = k => { try { return window[k] } catch (e) { return null } };

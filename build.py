@@ -248,11 +248,11 @@ def build_head(path: pathlib.Path, url_path: str) -> bool:
 NAV_BEGIN = "<!-- ==== BASSAR NAV ==== -->"
 NAV_END   = "<!-- ==== /BASSAR NAV ==== -->"
 NAV_RE    = re.compile(re.escape(NAV_BEGIN) + r".*?" + re.escape(NAV_END), re.S)
-NAV_ITEMS = [("FILES", "/"), ("THE RECORD", "/record/"), ("CONTACT", "/contact/")]
+NAV_ITEMS = [("GAMES", "/games/"), ("THE RECORD", "/record/"), ("CONTACT", "/contact/")]
 
 
 def build_nav(path: pathlib.Path, current: str) -> bool:
-    """The site nav, FILES · THE RECORD · CONTACT, on every page. Pages carry an empty
+    """The site nav, GAMES · THE RECORD · CONTACT, on every page. Pages carry an empty
     marked region; this fills it, so a new item is one edit here, not six."""
     if not path.exists():
         print(f"!! missing {path}"); return False
@@ -292,10 +292,12 @@ def main() -> int:
     for slug in GAMES:
         ok &= build_head(SITE / slug / "index.html", f"/{slug}/")
 
-    # the site nav on every page; FILES is current on the landing and on each game
-    ok &= build_nav(SITE / "index.html", "FILES")
+    # the site nav on every page; GAMES is current on the games page and on each game, nothing on the landing
+    ok &= build_nav(SITE / "index.html", "")
     for slug in GAMES:
-        ok &= build_nav(SITE / slug / "index.html", "FILES")
+        ok &= build_nav(SITE / slug / "index.html", "GAMES")
+    ok &= build_nav(SITE / "games" / "index.html", "GAMES")
+    ok &= build_head(SITE / "games" / "index.html", "/games/")
     ok &= build_nav(SITE / "record" / "index.html", "THE RECORD")
     ok &= build_nav(SITE / "contact" / "index.html", "CONTACT")
     ok &= build_head(SITE / "contact" / "index.html", "/contact/")

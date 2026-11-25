@@ -786,8 +786,36 @@ async function handleContact(req, env) {
    method; see the proposal in the handoff). Returns true only when a mail was actually sent.
    The recipient is the Worker secret CONTACT_TO: never in code, the repo or any page.
    Until it is configured this is a no-op and every message stays `notified = 0`. */
+/* Email the owner through Resend. Needs three things, all optional until set up:
+     RESEND_API_KEY  secret   (wrangler secret put RESEND_API_KEY)
+     CONTACT_TO      secret   the owner's address; never in code, repo or a page
+     CONTACT_FROM    var      e.g. "BASSAR PLAY <contact@bassarplay.com>", on a domain verified in Resend
+   Any of them missing -> returns false and the row stays notified = 0 (the backlog). Plain text only,
+   and the subject carries nothing a visitor typed, so there is nothing to inject. */
 async function notifyContact(env, msg) {
-  if (!env.CONTACT_TO) return false;
-  console.log("bassar contact: CONTACT_TO is set but no sender is wired yet; message", msg.id, "left unsent");
-  return false;
+  if (!env.RESEND_API_KEY || !env.CONTACT_TO || !env.CONTACT_FROM) return false;
+  const lines = [
+    "Audience: " + msg.audience,
+    "Name: " + (msg.name || "(none)"),
+    "Contact: " + msg.contact,
+    "",
+    msg.body,
+    "",
+    "id " + msg.id,
+  ];
+  const payload = {
+    from: env.CONTACT_FROM,
+    to: [env.CONTACT_TO],
+    subject: "[BASSAR] message from " + msg.audience,
+    text: lines.join("\n"),
+  };
+  if (msg.contact.includes("@")) payload.reply_to = msg.contact;   // reply goes to the sender
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Authorization": "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) { console.error("bassar contact: resend", res.status, (await res.text()).slice(0, 200)); return false; }
+  return true;
 }

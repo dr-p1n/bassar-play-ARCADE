@@ -51,8 +51,8 @@ Pixel **BASSAR** plus a solid mint **PLAY** plate with the letters knocked out i
 
 - The headline has **no mask and no box**. The pixel fog flows straight through it; it is only eased down ~40% by a very wide (~420px), soft swell (`uSoft` in `field.js`) so there is no edge to see. The fog itself was approved as-is ("the pixelated smoke / lava-lamp feel was perfect"): don't dim it further. Other text blocks still use the old rectangular mask.
 - Left-aligned, asymmetric. One idea per screen.
-- Landing: hero (the wordmark top-left, the headline **centred in the middle of the hero**, v2; **no `03:14` stamp and no lore line, both removed in v2**) → intro paragraph → **three posters, level, name only** → "Add yourself to it." with the form. No blurbs, numbering, or captions on the cards.
-- Posters are 2:3 (crop to 4:3 on phones). They are canvases, not images.
+- Landing (v4): hero (wordmark top-left, centred headline, one line of what we do, solid mint CTA "See the games" → `/games/`) → "We make horror games" + three facts (Free / In the browser / No gore) → **carousel of the three games** (metaphorical cover + the lore behind each, no autoplay, swipe/arrows/dots) with an "All games" link → "Add yourself to it." with the form. Section gaps are deliberately tight (about 45-70px). `/games/` lists the same three with controls and a button each.
+- Covers (`site/covers.js`) are 2:3 canvases (crop to 4:3 on phones), one metaphor per file, rolled per visit and nearly still: VOID//DRIFT two photographs of one treeline (the second closer), RECOVERED RECORDS a table set for four with one plate untouched, TRANSCRIPT a tape of marks with a listening gap. They replace the old posters.
 - Game pages: back link + file label, the game in its black frame, one-line instruction, "the file" copy, the access form, the other two files. Same fog, calmer and darker.
 - Forms: underline inputs only, mint outline button that fills on hover, sentence-case labels.
 - Responsive floor: 500px. Gutter `clamp(20px, 5vw, 56px)`.
@@ -86,7 +86,9 @@ Quiet, specific, in-world. The site speaks as the archive: "files", "the record"
 | `site/index.html` | landing |
 | `site/{void-drift,recovered-records,transcript}/index.html` | game wrapper pages |
 | `site/field.js` | shared fog (WebGL), layout-aware masking |
-| `site/landing.js` | headline glitch + the three poster generators |
+| `site/landing.js` | headline glitch |
+| `site/covers.js`, `site/gallery.js`, `site/gallery.css` | cover art generators, the landing carousel, shared cover/button styles |
+| `site/games/index.html` | the `/games/` page (the game files themselves sit beside it) |
 | `site/landing.css`, `site/bassar.css` | landing / game-page styles |
 | `site/games/*.html` | the games themselves (untouched) |
 | `src/index.js`, `wrangler.jsonc` | Worker: redirects workers.dev, `www` and http to `https://bassarplay.com` |

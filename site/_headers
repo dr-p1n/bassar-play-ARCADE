@@ -32,3 +32,12 @@
 # The games are the product. Short cache so a fix reaches players the same day.
 /games/*
   Cache-Control: public, max-age=600
+
+/gallery.css
+  Cache-Control: public, max-age=3600
+
+/gallery.js
+  Cache-Control: public, max-age=3600
+
+/covers.js
+  Cache-Control: public, max-age=3600
